@@ -44,12 +44,12 @@ def build_generator():
     :return: Generator network
     """
     z_size = 200
-    gen_filters = [512, 256, 128, 64, 1]
-    gen_kernel_sizes = [4, 4, 4, 4, 4]
-    gen_strides = [1, 1, 2, 2, 2]
+    gen_filters = [512, 256, 128, 64, 32, 1]
+    gen_kernel_sizes = [4, 4, 6, 6, 6, 8]
+    gen_strides = [1, 1, 2, 2, 2, 1]
     gen_input_shape = (1, 1, 1, z_size)
-    gen_activations = ['relu', 'relu', 'relu', 'relu', 'sigmoid']
-    gen_convolutional_blocks = 5
+    gen_activations = ['relu', 'relu', 'relu', 'relu', 'relu', 'sigmoid']
+    gen_convolutional_blocks = 6
 
     input_layer = Input(shape=gen_input_shape)
 
@@ -82,7 +82,7 @@ def build_discriminator():
 
     dis_input_shape = (32, 32, 32, 1)
     dis_filters = [64, 128, 256, 512, 1]
-    dis_kernel_sizes = [4, 4, 4, 4, 4]
+    dis_kernel_sizes = [6, 6, 6, 4, 4]
     dis_strides = [2, 2, 2, 1, 1]
     dis_paddings = ['same', 'same', 'same', 'same', 'valid']
     dis_alphas = [0.2, 0.2, 0.2, 0.2, 0.2]
@@ -92,11 +92,19 @@ def build_discriminator():
 
     dis_input_layer = Input(shape=dis_input_shape)
 
+    #TODO: testing with extra layers
+    a = Convolution3D(filters=32,
+                      kernel_size=8,
+                      strides=1,
+                      padding='same')(dis_input_layer)
+    a = BatchNormalization()(a, training=True)
+    a = LeakyReLU(.2)(a)
+
     # The first 3D Convolutional block
     a = Convolution3D(filters=dis_filters[0],
                kernel_size=dis_kernel_sizes[0],
                strides=dis_strides[0],
-               padding=dis_paddings[0])(dis_input_layer)
+               padding=dis_paddings[0])(a)
     a = BatchNormalization()(a, training=True)
     a = LeakyReLU(dis_alphas[0])(a)
 
@@ -119,13 +127,13 @@ def build_discriminator():
 # gen_learning_rate = 0.0025
 # dis_learning_rate = 0.00001
 gen_learning_rate = 0.025
-dis_learning_rate = 0.0001
+dis_learning_rate = 0.01
 beta = 0.5
-batch_size = 64
-epochs = 20
+batch_size = 264
+epochs = 200
 z_size = 200
 
-model_name = 'binaryGAN_base_test'
+model_name = 'binaryGAN_biggerkernels_higherDLR'
 generated_volumes_dir = "GAN_generated_samples/" + model_name + "/"
 if not os.path.exists(generated_volumes_dir):
     os.makedirs(generated_volumes_dir)
@@ -173,7 +181,7 @@ for epoch in range(epochs):
     number_of_batches = int(volumes.shape[0] / batch_size)
     # print("Number of batches:", number_of_batches)
     for index in range(number_of_batches):
-        print("Batch:", index + 1)
+        # print("Batch:", index + 1)
         # get a batch of noise vectors and rela volumes
         z_sample = np.random.normal(0, 0.33, size=[batch_size, 1, 1, 1,z_size]).astype(np.float32)
         volumes_batch = volumes[index * batch_size:(index + 1) * batch_size,:, :, :]
@@ -205,7 +213,7 @@ for epoch in range(epochs):
         dis_losses_f.append(loss_fake)
         dis_losses_r.append(loss_real)
 
-        if index % 10 == 0:
+        if index  == 0:
             z_sample2 = np.random.normal(0, 0.33, size=[batch_size, 1, 1, 1, z_size]).astype(np.float32)
             generated_volumes = generator.predict(z_sample2, verbose=3)
             for i, generated_volume in enumerate(generated_volumes[:5]):
