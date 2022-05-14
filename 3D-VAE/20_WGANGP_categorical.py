@@ -16,7 +16,7 @@ from functools import partial
 import tensorflow as tf
 import os
 from tensorflow.python.framework.ops import disable_eager_execution, enable_eager_execution
-from visualizer import binary_visualizer
+from visualizer import categorical_visualizer
 
 
 # from https://github.com/eriklindernoren/Keras-GAN/blob/master/wgan_gp/wgan_gp.py
@@ -40,15 +40,18 @@ class WGANGP3D():
         self.img_x = 20
         self.img_y = 20
         self.img_z = 20
-        self.channels = 1
+        self.channels = 15
         self.img_shape = (self.img_x, self.img_y, self.img_z, self.channels)
         self.latent_dim = 500
-        self.model_name = 'WGANGP_20_deeper_critic'
+        self.model_name = 'WGANGP_20_deep_categorical_4'
         self.sample_path = "GAN_generated_samples/" + self.model_name + "/"
-        self.visualizer = binary_visualizer(20, 5, 5)
+        self.model_path = "GAN_models/" + self.model_name + "/"
+        self.visualizer = categorical_visualizer(20, 5, 5)
         disable_eager_execution()
         if not os.path.exists(self.sample_path):
             os.makedirs(self.sample_path)
+        if not os.path.exists(self.model_path):
+            os.makedirs(self.model_path)
 
         # Following parameter and optimizer set as recommended in paper
         self.n_critic = 5
@@ -168,24 +171,31 @@ class WGANGP3D():
     def build_critic(self):
 
         model = Sequential()
-        # model.add(Conv3D(16, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
-        model.add(Conv3D(128, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
+
+        model.add(Conv3D(128, kernel_size=3, strides=1, input_shape=self.img_shape, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+        # downsample to 10x10x10x15
+        model.add(Conv3D(128, kernel_size=3, strides=2, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+        model.add(Conv3D(128, kernel_size=3, strides=1, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
 
-        # model.add(Conv3D(32, kernel_size=3, strides=2, padding="same"))
+        # downsample to 5x5x5x15
         model.add(Conv3D(64, kernel_size=3, strides=2, padding="same"))
-        model.add(ZeroPadding3D(padding=((0,1),(0,1), (0,1))))
-        # model.add(BatchNormalization(momentum=0.8))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-        model.add(Conv3D(64, kernel_size=3, strides=2, padding="same"))
-        # model.add(BatchNormalization(momentum=0.8))
+        model.add(Conv3D(128, kernel_size=3, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-        model.add(Conv3D(64, kernel_size=5, strides=1, padding="same"))
-        model.add(Conv3D(128, kernel_size=3, strides=1, padding="same"))
-        model.add(Conv3D(256, kernel_size=3, strides=1, padding="same"))
+        # model.add(Conv3D(128, kernel_size=5, strides=1, padding="same"))
+        # model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dropout(0.25))
+        model.add(Conv3D(512, kernel_size=4, strides=1, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
         # model.add(BatchNormalization(momentum=0.8))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
@@ -200,8 +210,8 @@ class WGANGP3D():
         return Model(img, validity)
 
     def load_data(self):
-        X = np.load('../house_combined_numpy_file/20_stone_only.npy')
-        X = X.reshape([-1, 20, 20, 20, 1])
+        X = np.load('../house_combined_numpy_file/20_onehot.npy')
+        X = X.reshape([-1, 20, 20, 20, 15])
         return  X
 
     def train(self, epochs, batch_size, sample_interval=50):
@@ -249,15 +259,19 @@ class WGANGP3D():
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
+                self.generator_model.save(self.model_path + "/generator_" + str(epoch) + ".h5")
+
+        self.generator_model.save(self.model_path + "/generator_finak.h5")
+
 
     def sample_images(self, epoch):
         r, c = 5, 5
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         gen_imgs = self.generator.predict(noise)
 
-        gen_imgs[gen_imgs >= .5] = 1
-        gen_imgs[gen_imgs < .5] = 0
-
+        # gen_imgs[gen_imgs >= .5] = 1
+        # gen_imgs[gen_imgs < .5] = 0
+        gen_imgs = np.argmax(gen_imgs, axis=4)
         gen_imgs.dump(self.sample_path + '/sample_epoch_' + str(epoch + 1) + '.npy')
 
         self.visualizer.draw(gen_imgs, self.sample_path + '/figures_epoch_' + str(epoch) + '.png')
@@ -277,4 +291,4 @@ class WGANGP3D():
 
 if __name__ == '__main__':
     wgan = WGANGP3D()
-    wgan.train(epochs=6000, batch_size=128, sample_interval=50)
+    wgan.train(epochs=2500, batch_size=128, sample_interval=50)
