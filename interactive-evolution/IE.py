@@ -16,6 +16,8 @@ client = minecraft_pb2_grpc.MinecraftServiceStub(channel)
 
 compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[8, 9, 10, 11, 213],[12, 13, 19, 24, 179],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[64, 71, 193, 194, 195, 196, 197],[78, 79, 80, 174],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198],]
 # compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123, 64, 71, 193, 194, 195, 196, 197, 8, 9, 10, 11, 213],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214, 12, 13, 19, 24, 179, 78, 79, 80, 174],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198]]
+id_to_type = {0:'AIR', 1:'STONE', 2:'GRASS', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 64:'WOODEN_DOOR', 78:'SNOW', 85:'FENCE'}
+
 
 BOUNDS_WORLD = [[-30000000, 29999999],  [4, 255], [-30000000, 29999999]]
 
@@ -26,6 +28,7 @@ ORIENTATIONS = ["O.N", "O.W", "O.S", "O.E", "O.U", "O.D"]
 
 gan_model_path = '../3D-VAE/GAN_models/WGANGP_16_smaller_compression_1/generator_200.h5'
 vae_model_path = '../3D-VAE/VAE_models/16_3DVAE_newlossy/16_3DVAE_newlossy/decoder.h5'
+# vae_model_path = 'decoder.h5'
 
 pop_size = 5
 
@@ -101,6 +104,11 @@ def build_zone(blocks, offset):
         for y in range(blocks.shape[1]):  # this is height in minecraft
             for z in range(blocks.shape[2]):
                 index = int(blocks[x, y, z])
+                for compressed in compression_list:
+                    if index in compressed:
+                        index = compressed[0]
+                        break
+                blocks_index.append(index)
                 # if not index == -1:  # AS INDEX - 1 means air block
                 #     try:
                 #         blocks_index.append(compression_list[0][index])
@@ -110,21 +118,22 @@ def build_zone(blocks, offset):
                 #     # Update position
                 #     position = bounded([x+offset, y+offset, z+offset])
                 #     positions.append(position)
-                if not index == 0:  # AS INDEX - 1 means air block
-                    try:
-                        blocks_index.append(index)
-                    except:
-                        print(
-                            "Following index out of bound of allowed blocks.", index)
+                # if not index == 0:  # AS INDEX - 1 means air block
+                #    try:
+                #        blocks_index.append(index)
+                #    except:
+                #        print(
+                #            "Following index out of bound of allowed blocks.", index)
                     # Update position
-                    position = bounded([x+offset[0], y+offset[1], z+offset[2]])
-                    positions.append(position)
+                position = bounded([x+offset[0], y+offset[1], z+offset[2]])
+                positions.append(position)
+            print(blocks_index)
 
     #print("Building these block indices:", blocks_index)
     zone = [offset[0], offset[1], offset[2], offset[0]+blocks.shape[0],
             offset[1]+blocks.shape[1], offset[2]+blocks.shape[2]]
     response = client.spawnBlocks(Blocks(blocks=[Block(position=Point(x=int(positions[i][0]), y=int(positions[i][1]), z=int(
-            positions[i][2])), type=blocks_index[i], orientation=NORTH) for i in range(len(blocks_index))]))
+            positions[i][2])), type=id_to_type[blocks_index[i]], orientation=NORTH) for i in range(len(blocks_index))]))
 
 
 """CLEANING MAP POST-SELECTION"""
@@ -183,29 +192,29 @@ def render_population(model, population):
         offset[0] += 20
 
 # gets users selection as an integer keyboard input
-def get_user_input(batch_size, batch_indices, population_size, origin):
+def get_user_input(population_size, origin):
     print("Choose one of these structures, from 1 to " +
-        str(batch_size) + " (west to east) ")
+        str(population_size) + " (west to east) ")
 
     # bounds of starting model
     neo_bound = 20
-    # Width of entire batch (bound * offset * batch_size)
-    width_batch = (30) * batch_size
-    perspective = np.floor(width_batch/2)
-    rewards = [0]*population_size
+    # Width of entire population (bound * offset * population_size)
+    width_pop = (30) * population_size
+    perspective = np.floor(width_pop/2)
+    # rewards = [0]*population_size
 
     while True: 
         try:
             # index = int(msvcrt.getch)
             index = int(input())
-            if index not in np.arange(len(batch_indices))+1:
+            if index not in np.arange(population_size)+1:
                 print('Entry not valid, try again. Press 0 to EXIT')
             else:
                 if index == 0:
                     offset = [
-                        origin[0] - np.floor(width_batch / 2), 4, origin[2] - perspective]
+                        origin[0] - np.floor(width_pop / 2), 4, origin[2] - perspective]
                     full_bounds = [(neo_bound + 10) *
-                                   batch_size, 20, 20]
+                                   population_size, 20, 20]
                     clean_zone(full_bounds, offset)
                     sys.exit("Bye")
                 break
@@ -258,21 +267,16 @@ def wasserstein_loss(self, y_true, y_pred):
 def main(argv):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--generator', type=str, default='GAN',
+    parser.add_argument('--generator', type=str, default='VAE',
         metavar='', help='Generator/policy type: VAE, GAN')
-
-    parser.add_argument('--choice_batch', type=int, default=5, metavar='',
-        help='Number of structures among which to choose one.')
 
     parser.add_argument('--position', type=list, default=[0, 10, 0], metavar='',
         help='Initial position for player advised, around which the structures will be evolved.')
 
     parser.add_argument('--population_size', type=int, default=5, metavar='',
-        help='Size of population (needs to be pair and be a multiple of choice_batch or will be approximated).')
+        help='Size of initial population.')
 
     args = parser.parse_args()
-
-    assert args.choice_batch <= args.population_size
 
 
     # wipe the slate clean
@@ -304,9 +308,7 @@ def main(argv):
         render_population(generative_model, population)
 
         # get user input, which represents the index of the structure they select to further evolve
-        # TODO: placeholder. what is this batch index arguement supposed to be?
-        batch_indexes = list(range(0,args.population_size))
-        selection = get_user_input(args.choice_batch, batch_indexes, population, args.position)
+        selection = get_user_input(len(population), args.position)
 
         # get our latent vector to be mutated
         selected_latent = population[selection]
