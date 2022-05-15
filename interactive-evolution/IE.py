@@ -19,11 +19,9 @@ DIRECTIONS = ["N", "W", "S", "E", "U", "D"]
 DIRECTIONS_2D = ["W", "E", "U", "D"]
 ORIENTATIONS = ["O.N", "O.W", "O.S", "O.E", "O.U", "O.D"]
 
-## Take command line arguements to specify whether we're loading a GAN or vae
-model_type = 'gan'
 
 gan_model_path = 'example/example/gan_generator.h5'
-vae_model_path = '../3D-VAE/decoder_flipped_1500epoch.h5'
+vae_model_path = 'example/example/vae_generator.h5'
 
 pop_size = 5
 
@@ -160,22 +158,23 @@ def clean_zone(bounds, offset):
     print(response)
 
 # renders our population by spawning them in on the evocraft server
-# TODO: how do we render it? for now, just render them in a single row, so it's easy to see which index aligns with which structure
+# how do we render it? for now, just render them in a single row, so it's easy to see which index aligns with which structure
 def render_population(model, population):
     generated_structures = gan_generate_from_latent(model, population)
     offset = 0
     for struc in generated_structures:
-        # TODO: use evocraft to draw all these into the server.
+        # use evocraft to draw all these into the server.
         build_zone(struc, offset)
         offset += 10
-    return generated_structures
 
-# TODO: gets users selection as an integer keyboard input
+# gets users selection as an integer keyboard input
 def get_user_input(batch_size, batch_indices, population_size, origin):
     print("Choose one of these structures, from 1 to " +
         str(batch_size) + " (west to east) ")
 
+    # bounds of starting model
     neo_bound = 20
+    # Width of entire batch (bound * offset * batch_size)
     width_batch = (30) * batch_size
     perspective = np.floor(width_batch/2)
     rewards = [0]*population_size
@@ -233,7 +232,7 @@ def train():
         parser.add_argument('--generator', type=str, default='GAN',
             metavar='', help='Generator/policy type: VAE, GAN')
 
-        parser.add_argument('--choice_batch', type=int, default=2, metavar='',
+        parser.add_argument('--choice_batch', type=int, default=5, metavar='',
             help='Number of structures among which to choose one.')
 
         parser.add_argument('--position', type=list, default=[0, 10, 0], metavar='',
@@ -259,10 +258,10 @@ def train():
         # begin interactive evolution loop
         while True:
             # render the population
-            generated_structures = render_population(model, population)
+            render_population(model, population)
 
-            # TODO: get user input, which represents the index of the structure they select to further evolve
-            selection = get_user_input(args.choice_batch, generated_structures, args.position)
+            # get user input, which represents the index of the structure they select to further evolve
+            selection = get_user_input(args.choice_batch, population, args.position)
 
             # get our latent vector to be mutated
             selected_latent = population[selection]
