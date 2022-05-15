@@ -671,26 +671,31 @@ def round_generated_npy(dir):
 
 
 
-# #  ========  preprocess ============
-# data = load_data()
-# dim_df = get_build_dim_df(data)
-# filtered_data = cut_to_dim(dim_df, data, 32, 32, 32)
-# padded_filtered_data = pad_arrays(filtered_data, 32, 32, 32)
-# #
-# # orig = np.copy(padded_filtered_data[100])
-# compressed = compress_data(padded_filtered_data)
-# compressed = compressed_to_categorical(compressed)
-# print(compressed[0].shape)
-# # sanity_check(orig, [compressed[100]])
-# # round_generated_npy("generated_samples")
-# # convert_to_schem("generated_samples/rounded/")
+#  ========  preprocess ============
+data = load_data()
+dim_df = get_build_dim_df(data)
+filtered_data = cut_to_dim(dim_df, data, 16, 16, 16)
+# print(len(filtered_data))
+padded_filtered_data = pad_arrays(filtered_data, 16, 16, 16)
 #
-# # stone_only = convert_to_stone_only(padded_filtered_data)
+# orig = np.copy(padded_filtered_data[100])
+compressed = compress_data(padded_filtered_data)
+compressed = compressed_to_categorical(compressed)
+# print(compressed[0].shape)
+# sanity_check(orig, [compressed[100]])
+# round_generated_npy("generated_samples")
+# convert_to_schem("generated_samples/rounded/")
+
+# stone_only = convert_to_stone_only(padded_filtered_data)
 # rotated = rotation_augmentation(compressed)
-# flipped = reflection_augmentation(rotated)
-# print(flipped[0].shape)
-# # compress_and_write_data(padded_filtered_data, 'compressed_combined_rotated_flipped.npy')
-# write_to_npy_file(flipped, "compressedcategorical_combined_rotated_flipped.npy")
+flipped = reflection_augmentation(compressed)
+
+one_hot = tf.one_hot(flipped, 15, dtype=tf.int8).numpy()
+# print(len(one_hot))
+# print(one_hot[0].shape)
+# compress_and_write_data(padded_filtered_data, 'compressed_combined_rotated_flipped.npy')
+print(len(one_hot))
+write_to_npy_file(one_hot, "16_onehot_flipped.npy")
 
 
 # uniques, counts = get_unique_blocks_counts()
