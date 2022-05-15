@@ -7,7 +7,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 
-input_shape = (1, 32, 32, 32)
+input_shape = (32, 32, 32)
 z_dim = 128
 
 def sampling(args):
@@ -137,9 +137,7 @@ def get_model():
             data_format = 'channels_first')(dec_conv4))
 
     decoder = Model(dec_in, dec_conv5)
-
     dec_conv5 = decoder(encoder(enc_in)[2])
-
     vae = Model(enc_in, dec_conv5)
 
     return {'inputs': enc_in,
