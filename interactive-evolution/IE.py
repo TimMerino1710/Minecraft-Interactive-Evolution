@@ -6,17 +6,19 @@ import random
 import grpc
 import minecraft_pb2_grpc
 from minecraft_pb2 import *
-import msvcrt
 import sys
 import argparse
 from fitness_functions import getch
+from nbtschematic import SchematicFile
+from random import randint
+from blockid_to_type import blockid_to_type
 
 channel = grpc.insecure_channel('localhost:5001')
 client = minecraft_pb2_grpc.MinecraftServiceStub(channel)
 
-compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[8, 9, 10, 11, 213],[12, 13, 19, 24, 179],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[64, 71, 193, 194, 195, 196, 197],[78, 79, 80, 174],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198],]
-# compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123, 64, 71, 193, 194, 195, 196, 197, 8, 9, 10, 11, 213],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214, 12, 13, 19, 24, 179, 78, 79, 80, 174],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198]]
-id_to_type = {0:'AIR', 1:'STONE', 2:'GRASS', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 64:'WOODEN_DOOR', 78:'SNOW', 85:'FENCE'}
+# compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[8, 9, 10, 11, 213],[12, 13, 19, 24, 179],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[64, 71, 193, 194, 195, 196, 197],[78, 79, 80, 174],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198],]
+compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123, 64, 71, 193, 194, 195, 196, 197, 8, 9, 10, 11, 213],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214, 12, 13, 19, 24, 179, 78, 79, 80, 174],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198]]
+id_to_type = {0:'AIR', 1:'STONE', 2:'GRASS', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 85:'FENCE'}
 
 
 BOUNDS_WORLD = [[-30000000, 29999999],  [4, 255], [-30000000, 29999999]]
@@ -26,17 +28,14 @@ DIRECTIONS_2D = ["W", "E", "U", "D"]
 ORIENTATIONS = ["O.N", "O.W", "O.S", "O.E", "O.U", "O.D"]
 
 
-gan_model_path = '../3D-VAE/GAN_models/WGANGP_16_smaller_compression_1/generator_200.h5'
-vae_model_path = '../3D-VAE/VAE_models/16_3DVAE_newlossy/16_3DVAE_newlossy/decoder.h5'
-# vae_model_path = 'decoder.h5'
+gan_model_path = 'generator_final.h5'
+vae_decoder_model_path = 'decoder.h5'
+
 
 pop_size = 5
 
-mutation_prob = .05
-mutation_amt = .1
-
-# # TODO: get the size of the z dimension by reading the first layer of the model
-# z_dim = 200
+mutation_prob = .5
+mutation_amt = .4  
 
 # generates num_pop number of random normal vectors with size z_dim
 def create_starting_population_gan(num_pop, z_dim):
@@ -45,11 +44,14 @@ def create_starting_population_gan(num_pop, z_dim):
 # turns integer values back into block IDs by inverting our compression
 def decompress(data):
     for i in range(len(compression_list)):
-        data[data == i] = compression_list[i][0]
+        random_block_type = randint(0, len(compression_list[i])-1)
+        if random_block_type not in blockid_to_type or i==0: random_block_type = 0
+        data[data == i] = compression_list[i][random_block_type]
+        # data[data == i] = compression_list[i][0]
     return data
 
 # take latent vectors, and generate structures from them
-def generate_from_latent(model, latent_vectors):
+def generate_from_latent(model_type, model, latent_vectors):
     generated_structures = model.predict(latent_vectors)
 
     # a categorical GAN will output one-hot encoded, so this must turned back into categorical
@@ -104,36 +106,27 @@ def build_zone(blocks, offset):
         for y in range(blocks.shape[1]):  # this is height in minecraft
             for z in range(blocks.shape[2]):
                 index = int(blocks[x, y, z])
+                if index not in blockid_to_type:
+                    for compressed in compression_list:
+                        if index in compressed:
+                            index = compressed[0]
+                            break
+                """
                 for compressed in compression_list:
                     if index in compressed:
                         index = compressed[0]
                         break
+                """
                 blocks_index.append(index)
-                # if not index == -1:  # AS INDEX - 1 means air block
-                #     try:
-                #         blocks_index.append(compression_list[0][index])
-                #     except:
-                #         print(
-                #             "Following index out of bound of allowed blocks.", index)
-                #     # Update position
-                #     position = bounded([x+offset, y+offset, z+offset])
-                #     positions.append(position)
-                # if not index == 0:  # AS INDEX - 1 means air block
-                #    try:
-                #        blocks_index.append(index)
-                #    except:
-                #        print(
-                #            "Following index out of bound of allowed blocks.", index)
-                    # Update position
                 position = bounded([x+offset[0], y+offset[1], z+offset[2]])
                 positions.append(position)
-            print(blocks_index)
 
-    #print("Building these block indices:", blocks_index)
     zone = [offset[0], offset[1], offset[2], offset[0]+blocks.shape[0],
             offset[1]+blocks.shape[1], offset[2]+blocks.shape[2]]
     response = client.spawnBlocks(Blocks(blocks=[Block(position=Point(x=int(positions[i][0]), y=int(positions[i][1]), z=int(
-            positions[i][2])), type=id_to_type[blocks_index[i]], orientation=NORTH) for i in range(len(blocks_index))]))
+            positions[i][2])), type=blockid_to_type[blocks_index[i]], orientation=NORTH) for i in range(len(blocks_index))]))
+
+    return blocks_index
 
 
 """CLEANING MAP POST-SELECTION"""
@@ -147,7 +140,6 @@ def clean_positions(positions):
     for i in range(positions.shape[0]):
         response = client.spawnBlocks(Blocks(blocks=[Block(position=Point(x=int(positions[i, 0]), y=int(
             positions[i, 1]), z=int(positions[i, 2])), type=AIR, orientation=NORTH)]))
-        # print(response)
 
 
 def clean_batch(positions_batch):
@@ -181,15 +173,16 @@ def clean_zone(bounds, offset):
     print(response)
 
 # renders our population by spawning them in on the evocraft server
-# how do we render it? for now, just render them in a single row, so it's easy to see which index aligns with which structure
-def render_population(model, population):
-    generated_structures = generate_from_latent(model, population)
-    offset = [0, 0, 0]
+def render_population(model_type, model, population):
+    generated_structures = generate_from_latent(model_type, model, population)
+    offset = [0, 4, 0]
+    rendered_structures = []
     for struc in generated_structures:
         # use evocraft to draw all these into the server.
-        build_zone(struc, offset)
-        # offset += 10
+        rendered_struc = build_zone(struc, offset)
+        rendered_structures.append(rendered_struc)
         offset[0] += 20
+    return rendered_structures
 
 # gets users selection as an integer keyboard input
 def get_user_input(population_size, origin):
@@ -201,34 +194,17 @@ def get_user_input(population_size, origin):
     # Width of entire population (bound * offset * population_size)
     width_pop = (30) * population_size
     perspective = np.floor(width_pop/2)
-    # rewards = [0]*population_size
 
     while True: 
         try:
-            # index = int(msvcrt.getch)
             index = int(input())
-            if index not in np.arange(population_size)+1:
+            if index==0:
+                return -1
+            elif index not in np.arange(population_size)+1:
                 print('Entry not valid, try again. Press 0 to EXIT')
-            else:
-                if index == 0:
-                    offset = [
-                        origin[0] - np.floor(width_pop / 2), 4, origin[2] - perspective]
-                    full_bounds = [(neo_bound + 10) *
-                                   population_size, 20, 20]
-                    clean_zone(full_bounds, offset)
-                    sys.exit("Bye")
-                break
         except:
-            print('Entry not valid, try again2')
-        # if index == 0:
-        #     offset = [
-        #         origin[0] - np.floor(width_batch/2), 4, origin[2] - perspective]
-        #     full_bounds = [(neo_bound + 10) *
-        #                     batch_size, 20, 20]
-        #     clean_zone(full_bounds, offset)
-        #     sys.exit("Bye")
-
-    return index
+            print('Entry not valid, try again.')
+        return index-1
 
 
 # mutates a single vector
@@ -263,6 +239,7 @@ def wasserstein_loss(self, y_true, y_pred):
 
 
 
+
 # def train():
 def main(argv):
     parser = argparse.ArgumentParser()
@@ -275,6 +252,9 @@ def main(argv):
 
     parser.add_argument('--population_size', type=int, default=5, metavar='',
         help='Size of initial population.')
+
+    parser.add_argument('--save_name', type=str, default="final", metavar='',
+        help='Filename of saved final structure')
 
     args = parser.parse_args()
 
@@ -291,7 +271,7 @@ def main(argv):
         generative_model = load_model(gan_model_path, custom_objects={'wasserstein_loss': wasserstein_loss})
 
     elif args.generator == 'VAE':
-        generative_model = load_model(vae_model_path)
+        generative_model = load_model(vae_decoder_model_path)
 
     # print(generative_model.summary())
 
@@ -302,18 +282,46 @@ def main(argv):
     # create a starting population as a list of latent vectors
     population = create_starting_population_gan(args.population_size, z_dim)
     print("starting population shape: ", population.shape)
+
+    prev_selection = 0
+    iterations = 1
     # begin interactive evolution loop
     while True:
         # render the population
-        render_population(generative_model, population)
+        rendered_structures = render_population(args.generator, generative_model, population)
 
         # get user input, which represents the index of the structure they select to further evolve
         selection = get_user_input(len(population), args.position)
+
+        # Save final structure to schematic
+        if selection == -1:
+            final = rendered_structures[prev_selection]
+            print(final)
+            final = np.array(final).reshape(16,16,16)
+            print(final.tolist())
+            sf = SchematicFile(shape=(16,16,16))
+            print(final)
+            for index, block_id in np.ndenumerate(final):
+                print(index)
+                if block_id not in blockid_to_type:
+                    for compressed in compression_list:
+                        if block_id in compressed:
+                            block_id = compressed[0]
+                            break
+                sf.blocks[index[1], index[2], index[0]] = block_id
+            sf.save("final_schematics/" + args.save_name + ".schematic")
+            print(f"Final structure {args.save_name} saved.")
+            return
+
+        print(f"Iterations: {iterations}")
 
         # get our latent vector to be mutated
         selected_latent = population[selection]
 
         population = generate_mutated_population(selected_latent)
+
+        prev_selection = selection
+        iterations += 1
 
 if __name__ == '__main__':
     main(sys.argv)
