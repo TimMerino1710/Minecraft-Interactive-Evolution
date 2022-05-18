@@ -40,10 +40,10 @@ class WGANGP3D():
         self.img_x = 16
         self.img_y = 16
         self.img_z = 16
-        self.channels = 15
+        self.channels = 11
         self.img_shape = (self.img_x, self.img_y, self.img_z, self.channels)
         self.latent_dim = 500
-        self.model_name = 'WGANGP_16_2'
+        self.model_name = 'WGANGP_16_smaller_compression_2'
         self.sample_path = "GAN_generated_samples/" + self.model_name + "/"
         self.model_path = "GAN_models/" + self.model_name + "/"
         self.visualizer = categorical_visualizer(16, 5, 5)
@@ -211,8 +211,8 @@ class WGANGP3D():
         return Model(img, validity)
 
     def load_data(self):
-        X = np.load('../house_combined_numpy_file/16_onehot_flipped.npy')
-        X = X.reshape([-1, 16, 16, 16, 15])
+        X = np.load('../house_combined_numpy_file/16_onehot_flipped_smaller_compression.npy')
+        X = X.reshape([-1, 16, 16, 16, 11])
         return  X
 
     def train(self, epochs, batch_size, sample_interval=50):
@@ -260,9 +260,10 @@ class WGANGP3D():
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
-                self.generator_model.save(self.model_path + "/generator_" + str(epoch) + ".h5")
+                self.generator.save(self.model_path + "/generator_" + str(epoch) + ".h5")
+                self.generator_model.save(self.model_path + "/GAN_" + str(epoch) + ".h5")
 
-        self.generator_model.save(self.model_path + "/generator_finak.h5")
+        self.generator.save(self.model_path + "/generator_final.h5")
 
 
     def sample_images(self, epoch):
@@ -292,4 +293,4 @@ class WGANGP3D():
 
 if __name__ == '__main__':
     wgan = WGANGP3D()
-    wgan.train(epochs=2500, batch_size=65, sample_interval=100)
+    wgan.train(epochs=2500, batch_size=128, sample_interval=100)
