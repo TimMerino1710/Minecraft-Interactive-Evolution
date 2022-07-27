@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from nbtschematic import SchematicFile
 import importlib
+import tensorflow as tf
 
 
 # blocckid_dict = {
@@ -542,7 +543,118 @@ def convert_to_blockid(combined_array):
     return combined_array
 
 
+def cropHouse(h):
+    # argwhere will give you the coordinates of every non-zero point
+    true_points = np.argwhere(h)
+    # take the smallest points and use them as the top left of your crop
+    top_left = true_points.min(axis=0)
+    # take the largest points and use them as the bottom right of your crop
+    bottom_right = true_points.max(axis=0)
+    out = h[top_left[0]:bottom_right[0] + 1,  # plus 1 because slice isn't
+          top_left[1]:bottom_right[1] + 1, top_left[2]:bottom_right[2] + 1]  # inclusive
+
+    return out
+
+def houseTrans(h, s=(16, 16, 16)):
+    hts = []
+
+    s2 = cropHouse(h)
+    # print("cropped house shape: ", s2.shape)
+    s2s = s2.shape
+    ds = (s[0] - s2s[0], s[1] - s2s[1], s[2] - s2s[2])
+    # print(ds)
+    # for x in range(1):
+    for x in range(s[0] - s2s[0] + 1):
+        # for y in range(1):
+        for y in range(s[1] - s2s[1]):
+            for z in range(1):
+                # for z in range(s[2]-s2s[2]+1):
+                thouse = np.zeros(shape=s)
+                thouse[x:x + s2s[0], y:y + s2s[1], z:z + s2s[2]] = s2.copy()
+                hts.append(thouse)
+    # print("len of hts: ", len(hts))
+    return hts
+
+def augment(combined):
+    HOUSE_DATASET = []
+    HOUSE_DATASET_BIN = []
+    DOUBLE_HOUSES = []
+    DOUBLE_MOVE_HOUSES = []
+    TRANS_HOUSES = []
+    TRANS_HOUSES_PRE = []
+    TRANS_DOUBLE_HOUSES = []
+
+    # house_combined = np.load('../ingame house schematics/combined_ingame_onehot.npy')
+    blocks = []
+    for h in combined:
+        print("h shape ", h.shape)
+        # houses look rotated... just rotate them back
+        h = np.rot90(h, axes=(0, 2))
+
+        # remove bottom layer (got the ground as well) - i can't believe i got it right on the first try...
+        h = h[3:, 3:, 1:-2]
+        HOUSE_DATASET.append(h)
+
+        # # binary
+        # idx = np.nonzero(h)
+        # hb = np.zeros(shape=h.shape)
+        # for i in range(len(idx[0])):
+        #     a, b, c = idx
+        #     hb[a[i]][b[i]][c[i]] = 1
+        # HOUSE_DATASET_BIN.append(hb)
+
+        # crop and translate
+        # tds = []
+        # for di in HOUSE_DATASET_BIN:
+        tds = houseTrans(h, (16, 16, 16))
+        # print(len(tds))
+        # TRANS_DOUBLE_HOUSES += random.choices(tds,k=20)
+        # TRANS_HOUSES_PRE += tds
+
+        # rotated
+        for haus in tds:
+            TRANS_HOUSES.append(haus)
+            TRANS_HOUSES.append(np.rot90(haus, axes=(0, 1)))
+            TRANS_HOUSES.append(np.rot90(haus, axes=(1, 0)))
+            TRANS_HOUSES.append(np.rot90(np.rot90(haus, axes=(1, 0)), axes=(1, 0)))
+
+        # doubled binary
+        # h2 = hb
+        # dh = np.zeros(shape=(32,32,32))
+        # m = [(0,0,0),(1,0,0),(0,1,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(1,1,1)]
+        # for x in range(16):
+        #     for y in range(16):
+        #         for z in range(16):
+        #             v = h2[x][y][z]
+        #             if v == 0:
+        #                 continue
+        #             for mi in m:
+        #                 dh[x*2+mi[0]][y*2+mi[1]][z*2+mi[2]] = v
+        # DOUBLE_HOUSES.append(dh)
+
+        # doubled binary and rotated
+        # hi = np.copy(dh)
+        # DOUBLE_MOVE_HOUSES.append(hi)
+        # DOUBLE_MOVE_HOUSES.append(np.rot90(hi,axes=(0,1)))
+        # DOUBLE_MOVE_HOUSES.append(np.rot90(hi,axes=(1,0)))
+        # DOUBLE_MOVE_HOUSES.append(np.rot90(np.rot90(hi,axes=(1,0)),axes=(1,0)))
+
+    HOUSE_DATASET = np.array(HOUSE_DATASET)
+    HOUSE_DATASET_BIN = np.array(HOUSE_DATASET_BIN)
+    DOUBLE_HOUSES = np.array(DOUBLE_HOUSES)
+    DOUBLE_MOVE_HOUSES = np.array(DOUBLE_MOVE_HOUSES)
+    TRANS_DOUBLE_HOUSES = np.array(TRANS_DOUBLE_HOUSES)
+    TRANS_HOUSES = np.array(TRANS_HOUSES)
+
+    print("\n \n Length of transormed houses: ", len(TRANS_HOUSES), "\n \n")
+    return TRANS_HOUSES
+
 combined = create_combined_blockname_data('../ingame house schematics')
 converted = convert_to_blockid(combined)
-np.save("../ingame house schematics/combined_ingame_compressed.npy", converted)
+print(converted.shape)
+augmented = augment(converted)
+print(augmented.shape)
+onehot = tf.one_hot(augmented, 11, dtype=tf.int8).numpy()
+print(onehot.shape)
+np.save("../ingame house schematics/combined_ingame_onehot_augmented.npy", onehot)
 # print(mapping_df)

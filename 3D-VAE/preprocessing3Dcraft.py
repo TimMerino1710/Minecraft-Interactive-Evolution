@@ -600,6 +600,7 @@ def reflection_augmentation(data):
         flipped_data.append(copy)
         flipped_data.append(flipped_X)
     return flipped_data
+
 #TODO:
 # the trickiest augmentation, translate our samples in the X and y dimensions as much as possible
 # this will require computing how much we can translate (how much empty space we have on each side, or the buffer)
@@ -616,8 +617,9 @@ def center_data():
     pass
 
 # returns the unique block IDs in the combined file, and the counts corresponding to each block
-def get_unique_blocks_counts():
-    combined = np.load(COMBINED_FILE)
+def get_unique_blocks_counts(file):
+    # combined = np.load(COMBINED_FILE)
+    combined = np.load(file)
     uniques, counts = np.unique(combined, return_counts=True)
     return uniques, counts
 
@@ -668,34 +670,40 @@ def round_generated_npy(dir):
 
 
 
+# in game preprocessing
+file = '../ingame house schematics\old format schematic files\combined.npy'
+# TODO: lots of negative values, why?
+uniq, cnt = get_unique_blocks_counts(file)
+print(uniq)
+print(cnt)
 
+print_counts_blocknames(uniq, cnt)
 
-
-#  ========  preprocess ============
-data = load_data()
-dim_df = get_build_dim_df(data)
-filtered_data = cut_to_dim(dim_df, data, 16, 16, 16)
-# print(len(filtered_data))
-padded_filtered_data = pad_arrays(filtered_data, 16, 16, 16)
+# #  ========  preprocess ============
+# data = load_data()
+# dim_df = get_build_dim_df(data)
+# filtered_data = cut_to_dim(dim_df, data, 16, 16, 16)
+# # print(len(filtered_data))
+# padded_filtered_data = pad_arrays(filtered_data, 16, 16, 16)
+# #
+# # orig = np.copy(padded_filtered_data[100])
+# compressed = compress_data(padded_filtered_data)
+# compressed = compressed_to_categorical(compressed)
+# # print(compressed[0].shape)
+# # sanity_check(orig, [compressed[100]])
+# # round_generated_npy("generated_samples")
+# # convert_to_schem("generated_samples/rounded/")
 #
-# orig = np.copy(padded_filtered_data[100])
-compressed = compress_data(padded_filtered_data)
-compressed = compressed_to_categorical(compressed)
-# print(compressed[0].shape)
-# sanity_check(orig, [compressed[100]])
-# round_generated_npy("generated_samples")
-# convert_to_schem("generated_samples/rounded/")
-
-# stone_only = convert_to_stone_only(padded_filtered_data)
-# rotated = rotation_augmentation(compressed)
-flipped = reflection_augmentation(compressed)
-
-one_hot = tf.one_hot(flipped, 15, dtype=tf.int8).numpy()
+# # stone_only = convert_to_stone_only(padded_filtered_data)
+# # rotated = rotation_augmentation(compressed)
+# flipped = reflection_augmentation(compressed)
+#
+# one_hot = tf.one_hot(flipped, 15, dtype=tf.int8).numpy()
+# # print(len(one_hot))
+# # print(one_hot[0].shape)
+# # compress_and_write_data(padded_filtered_data, 'compressed_combined_rotated_flipped.npy')
 # print(len(one_hot))
-# print(one_hot[0].shape)
-# compress_and_write_data(padded_filtered_data, 'compressed_combined_rotated_flipped.npy')
-print(len(one_hot))
-write_to_npy_file(one_hot, "16_onehot_flipped.npy")
+# write_to_npy_file(one_hot, "16_onehot_flipped.npy")
 
 
 # uniques, counts = get_unique_blocks_counts()
