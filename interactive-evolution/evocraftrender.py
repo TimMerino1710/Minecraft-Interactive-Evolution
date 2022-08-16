@@ -202,8 +202,8 @@ class EvoRenderer():
         for struct in structs:
             # use evocraft to draw all these into the server.
             rendered_struc = self.build_zone(struct, self.offset)
-            self.offset[0] += 20
+            self.offset[0] += self.offset_x
         self.offset[0] = 0
-        self.offset[2] += -25
+        self.offset[2] += - self.offset_y
 
 
