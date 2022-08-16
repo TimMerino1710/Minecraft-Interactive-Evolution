@@ -476,6 +476,7 @@ import tensorflow as tf
 # Takes a directory of .schem files, and converts them into a combined array of size (# samples, x, y, z), where each entry is a minecraft block name (ex: minecraft:air)
 
 mapping_df = pd.read_csv('../compression_csv.csv')
+id_to_type = {0:'1', 1:'2', 2:'3', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 85:'FENCE'}
 def create_combined_blockname_data(schematic_dir):
     data_list = []
     for file in os.listdir(schematic_dir):
@@ -519,6 +520,22 @@ def create_combined_blockname_data(schematic_dir):
     return combined
     # np.save(schematic_dir + "/combined_blocknames.npy", combined)
 
+def compressed_to_categorical(data):
+    # Get unique compressed block ids
+    uniques = np.unique(data)
+    print("Number of block categories: ", len(uniques))
+    print("uniques: ", uniques)
+
+    # sort them so they're lowest to highest
+    uniques = np.sort(uniques)
+    print("sorted unqiues: ", uniques)
+    # map to 1-10, rather than random ids
+    for i, category in enumerate(uniques):
+        print(i, ", category: ", category)
+        data[data == category] = i
+    return data
+
+
 def convert_to_blockid(combined_array):
     uniques = np.unique(combined_array)
 
@@ -537,9 +554,6 @@ def convert_to_blockid(combined_array):
         # replace all instances of this value with the corresponding block id
         combined_array[np.where(combined_array == val)] = block_id
 
-    uniques, counts = np.unique(combined_array, return_counts=True)
-    print(uniques)
-    print(counts)
     return combined_array
 
 
@@ -587,7 +601,6 @@ def augment(combined):
     # house_combined = np.load('../ingame house schematics/combined_ingame_onehot.npy')
     blocks = []
     for h in combined:
-        print("h shape ", h.shape)
         # houses look rotated... just rotate them back
         h = np.rot90(h, axes=(0, 2))
 
@@ -651,10 +664,9 @@ def augment(combined):
 
 combined = create_combined_blockname_data('../ingame house schematics')
 converted = convert_to_blockid(combined)
-print(converted.shape)
-augmented = augment(converted)
-print(augmented.shape)
-onehot = tf.one_hot(augmented, 11, dtype=tf.int8).numpy()
-print(onehot.shape)
+categorical = compressed_to_categorical(converted)
+augmented = augment(categorical)
+print("Augmented shape: ", augmented.shape)
+onehot = tf.one_hot(augmented, 10, dtype=tf.int8).numpy()
 np.save("../ingame house schematics/combined_ingame_onehot_augmented.npy", onehot)
 # print(mapping_df)

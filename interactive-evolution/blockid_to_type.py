@@ -15,6 +15,7 @@ blockid_to_type = {
 14:  "GOLD_ORE",
 15:  "IRON_ORE",
 16:  "COAL_ORE",
+18:  "LEAVES",
 19:  "SPONGE",
 20:  "GLASS",
 21:  "LAPIS_ORE",
