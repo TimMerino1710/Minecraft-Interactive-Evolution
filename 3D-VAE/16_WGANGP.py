@@ -43,10 +43,10 @@ class WGANGP3D():
         self.channels = 11
         self.img_shape = (self.img_x, self.img_y, self.img_z, self.channels)
         self.latent_dim = 500
-        self.model_name = 'WGANGP_16_smaller_compression_2'
+        self.model_name = 'WGANGP_16_house_categorical_augmented1'
         self.sample_path = "GAN_generated_samples/" + self.model_name + "/"
         self.model_path = "GAN_models/" + self.model_name + "/"
-        self.visualizer = categorical_visualizer(16, 5, 5)
+        self.visualizer = categorical_visualizer(16, 3, 3)
         disable_eager_execution()
         if not os.path.exists(self.sample_path):
             os.makedirs(self.sample_path)
@@ -211,9 +211,23 @@ class WGANGP3D():
         return Model(img, validity)
 
     def load_data(self):
-        X = np.load('../house_combined_numpy_file/16_onehot_flipped_smaller_compression.npy')
-        X = X.reshape([-1, 16, 16, 16, 11])
-        return  X
+        # X = np.load('../ingame house schematics/combined_ingame_onehot.npy')
+        # X = X.reshape([-1, 16, 16, 16, 11])
+
+        HOUSE_DATASET = []
+        HOUSE_DATASET_BIN = []
+
+        X = np.load('../ingame house schematics/combined_ingame_onehot_augmented.npy')
+        # for h in house_combined:
+        #     h = np.rot90(h, axes=(0, 2))
+        #     h = h[3:, 3:, 1:-2, :]
+        #     HOUSE_DATASET_BIN.append(h)
+        #
+        # HOUSE_DATASET_BIN = np.array(HOUSE_DATASET_BIN)
+        # X = HOUSE_DATASET_BIN.reshape([-1, 16, 16, 16, 11])
+        # print(X.shape)
+        return X
+
 
     def train(self, epochs, batch_size, sample_interval=50):
 
@@ -267,7 +281,7 @@ class WGANGP3D():
 
 
     def sample_images(self, epoch):
-        r, c = 5, 5
+        r, c = 3, 3
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         gen_imgs = self.generator.predict(noise)
 
@@ -291,6 +305,8 @@ class WGANGP3D():
         # plt.close()
 
 
+
+
 if __name__ == '__main__':
     wgan = WGANGP3D()
-    wgan.train(epochs=2500, batch_size=128, sample_interval=100)
+    wgan.train(epochs=500, batch_size=128, sample_interval=100)

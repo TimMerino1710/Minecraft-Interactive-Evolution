@@ -28,7 +28,7 @@ DIRECTIONS_2D = ["W", "E", "U", "D"]
 ORIENTATIONS = ["O.N", "O.W", "O.S", "O.E", "O.U", "O.D"]
 
 
-gan_model_path = 'generator_final.h5'
+gan_model_path = '../3D-VAE/GAN_models/WGANGP_16_house_categorical_test1/generator_final.h5'
 vae_decoder_model_path = 'decoder.h5'
 
 
@@ -44,10 +44,10 @@ def create_starting_population_gan(num_pop, z_dim):
 # turns integer values back into block IDs by inverting our compression
 def decompress(data):
     for i in range(len(compression_list)):
-        random_block_type = randint(0, len(compression_list[i])-1)
-        if random_block_type not in blockid_to_type or i==0: random_block_type = 0
-        data[data == i] = compression_list[i][random_block_type]
-        # data[data == i] = compression_list[i][0]
+        # random_block_type = randint(0, len(compression_list[i])-1)
+        # if random_block_type not in blockid_to_type or i==0: random_block_type = 0
+        # data[data == i] = compression_list[i][random_block_type]
+        data[data == i] = compression_list[i][0]
     return data
 
 # take latent vectors, and generate structures from them
