@@ -1,0 +1,1178 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 467,
+   "id": "c737cfd3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import tensorflow as tf\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "%matplotlib inline"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 468,
+   "id": "f8d9eb9b",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.image.AxesImage at 0x16e24b8e0>"
+      ]
+     },
+     "execution_count": 468,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "donut = np.array([[0,0,0,0,0,0,0],[0,0,1,1,1,0,0],[0,1,1,0,1,1,0],[0,1,1,0,1,1,0],[0,0,1,1,1,0,0],[0,0,0,0,0,0,0]])\n",
+    "house = np.array([[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[0,0,1,1,1,0,0],[0,0,1,1,1,0,0]])\n",
+    "square = np.array([[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0],[0,0,1,1,1,0,0],[0,0,1,1,1,0,0],[0,0,1,1,1,0,0]])\n",
+    "plt.imshow(house,cmap='gray')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 555,
+   "id": "11dc0fd4",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from matplotlib.colors import ListedColormap, BoundaryNorm\n",
+    "import random\n",
+    "\n",
+    "block_color_set = ['black']\n",
+    "pokemon = [\"#ff0000\",\"#f6bd20\",\"#9c5200\",\"#de9400\",\"#623108\",\"#62d5b4\",\"#83eec5\",\"#184a4a\",\"#73ac31\",\"#e65a41\",\"#29739c\"]\n",
+    "random.shuffle(pokemon)\n",
+    "block_color_set += pokemon\n",
+    "maskmap = ListedColormap(block_color_set,N=11)\n",
+    "#norm = BoundaryNorm(list(range(12)), 11)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 683,
+   "id": "42117a84",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def weirdHouse():\n",
+    "    new_sq = square.copy()\n",
+    "    i = 0\n",
+    "    while random.random() < 0.75 and i < 10:\n",
+    "        c = random.randint(0,6)\n",
+    "        r = random.randint(1,4)\n",
+    "        new_sq[r,c] = 1\n",
+    "        i+=1\n",
+    "    return new_sq\n",
+    "\n",
+    "def colorHouse():\n",
+    "    cs = list(range(1,11))\n",
+    "    random.shuffle(cs)\n",
+    "    canvas = np.zeros((6,7))\n",
+    "    #rows\n",
+    "    for x in range(7):\n",
+    "        canvas[4:,x] = random.choice(cs[2:-1])\n",
+    "    #any above\n",
+    "    for x in range(7):\n",
+    "        for y in [0,1]:\n",
+    "            canvas[y,x] = random.choice(cs[1:])\n",
+    "    canvas[np.where(square==1)] = cs[0] #color base\n",
+    "    canvas[5,1] = cs[0]\n",
+    "    canvas[5,5] = cs[0]\n",
+    "    canvas[3,:] = cs[-1]  #top\n",
+    "    for x in range(7):\n",
+    "        canvas[2,x] = random.choice(cs[-3:])\n",
+    "        \n",
+    "    return canvas\n",
+    "    \n",
+    "def showMask(mask,img,debug=False):\n",
+    "#     v = np.unique(img)\n",
+    "#     v = list(range(11))\n",
+    "#     norm = BoundaryNorm(v, len(v)-1)\n",
+    "    \n",
+    "    c = ['gray',maskmap,maskmap]\n",
+    "    m = [mask,img, mask*img]\n",
+    "    n = [None,norm,norm]\n",
+    "    \n",
+    "    plt.figure(figsize=(5,2))\n",
+    "    for i in range(3):\n",
+    "        plt.subplot(1,3,i+1)\n",
+    "        plt.xticks([])\n",
+    "        plt.yticks([])\n",
+    "        #plt.imshow(np.array(m[i]).squeeze(),cmap=c[i],norm=n[i])\n",
+    "        plt.imshow(np.array(m[i]).squeeze(),cmap=c[i],vmin=0,vmax=(10 if i > 0 else 1))\n",
+    "    plt.show()\n",
+    "    \n",
+    "    if debug:\n",
+    "        print(img)\n",
+    "        print(mask*img)\n",
+    "     \n",
+    "    \n",
+    "#assum 6x7 shape\n",
+    "def encode(l):\n",
+    "    b = np.zeros((42, 11))\n",
+    "    for i in range(42):\n",
+    "        c = i%6\n",
+    "        r = i//7\n",
+    "        v = int(l[r,c])\n",
+    "        b[i,v]=1\n",
+    "    return b"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 687,
+   "id": "a0357f52",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAC/UlEQVR4nO3dv29NYRzH8ec2lTZSaVBNyoAJI7GIbpbGQCImTNgYbYxdbAZiwUQHg8RmM9XURMTC4PciQSMSUgbHP1Bxntt72k/j9Zq/9+lpnp537k3u09NrmqYAJBpa6wsA+BuBAmIJFBBLoIBYAgXEEigg1nDNcK/X852EAWmaptfva0c3jzdjOybbv+D1q6r1pya62+bFrXuq5rd8eVk1P/R9U+vZD9+XyuLSr773oRT3xCAtd09UBYoMYzsmy/H719q/4MzJqvWvnFuqu6AK907dqZo/PXe4an70ycHWszOPFqrWZvX5iAfEEigglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXE6tX8R01f6x+clRx1ObBnpJm/ub31/MVLH/v9Ua3M7jvUenZq7nHd2ovzVfNvjhxpPfvwxc/y+cdvR11CLHdPeAcFxBIoIJZAAbEECoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbGizuLVXEvXer0VHdH6p5WcxZvYONQc3zvSer7Lp7SUUsrs7dFO169R87seu1rK8/f970Mp3d8Tr6/XzXe5F3eedvt35CwesK4IFBBLoIBYAgXEEigglkABsQQKiCVQQCyBAmIJFBCr06MuSUdXulZ7NGY1j7qwvLV47NTZ/TnHgrpWezTGURdgXREoIJZAAbEECoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbE8duovkh87tWF8vJmYnm49f+Hu5ar1p84frr2kzpy6sKtq/uvt3a1nZx4tlGdfvkU/durWiS5Xr3P+QbfrO4sHrCsCBcQSKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCDW8FpfAN1LOltXa+7G26r5o6Ptz+KRzzsoIJZAAbEECoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbEECohV+1y8T6WUd91dzn9jZ9M02/p9sX0YmBXtQyn2YoCW3YuqQAGsJh/xgFgCBcQSKCCWQAGxBAqIJVBALIECYgkUEEuggFh/ABMEptXMoR/mAAAAAElFTkSuQmCC\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "#level = np.random.randint(12, size=(6, 7))\n",
+    "level = colorHouse()\n",
+    "showMask(house,level)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 688,
+   "id": "d5c916b9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#make lots of weird houses as training data\n",
+    "NUM_HOUSES = 2500\n",
+    "X_dat = []\n",
+    "y_dat = []\n",
+    "y_dat2 = []\n",
+    "for i in range(NUM_HOUSES):\n",
+    "    mask_house = weirdHouse()\n",
+    "    bin_house = np.expand_dims(mask_house,axis=-1)\n",
+    "    full_color = colorHouse()\n",
+    "    #full_color = np.random.randint(12, size=(6, 7))\n",
+    "    cat_house = full_color*bin_house.squeeze()\n",
+    "    cat_house2 = encode(cat_house)\n",
+    "    #cat_house2 = (np.arange(11) == cat_house[...,None]-1).astype(int)\n",
+    "    \n",
+    "    X_dat.append(bin_house)\n",
+    "    y_dat.append(full_color)\n",
+    "    y_dat2.append(cat_house2)\n",
+    "    \n",
+    "X_dat = np.array(X_dat)\n",
+    "y_dat = np.array(y_dat)\n",
+    "y_dat2 = np.array(y_dat2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 689,
+   "id": "31df8bd1",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAADMklEQVR4nO3dPYgVVxjH4TOuCVrELCaB1WLVRklhIbtVttJtgqWlZUgjSRdIqlRimU6x0kpt7OzVylQLaQL5gPhVqCFolgQW88WkS3UD8+69s/cvPk/93rMHhvtjLszZ6fq+bwCJds17AwD/R6CAWAIFxBIoIJZAAbEECoi1uzLcdZ1nEmak7/tuu5999+2Ffnlp+KXb9eOfpfX/2v9Waf7nxb8Hzy7sWy6tXfXGwx8Gzz7fau33P7Z/HVrznZilSd+JUqDIsLy0u927fHDw/N71h6X1n364Wpr/6szm4NnFUxdLa1cd+Hht8Oz5OyNuhJnwEw+IJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIVXqSfGVlpW1sbIy1l9Z1U506mKvKfyZdXa09qT2tp2dPluYrT4a31tonz74ZPHvpzqelta9fPVCav//Z4eF7+fZJae1JThx9s/RU/+aVI6X1D964W91SjK3bhwfPrp2bfC3cQQGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBArK5yhswrdmZnmtdOHV/u+ltfDJ+/tHSitH71zSubhfN1Y65dde3z79uzn7a8dirEpO+EOygglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsUqvnRpb5djN2KqvwNrJ1069eOdYu3726uD5xan+2oD1i8dXUtZe2PfRaGvPyvkX9+a9hf98uX+tNF/Z++VTk6+FOygglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsQQKiBV1Fu9VVj27N41/fns86uuYfr3w3WhrV31w5GVp/vSek4Nnbz5+Ut3Ojnuwvj7vLWxb9ezeJO6ggFgCBcQSKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWs3ivgaSzdVVfP9hTmj/9/kgbYS7cQQGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBArK7v++HDXfdLa+3ReNt5bRzq+/697X7YdZiZqa5Da67FDE28FqVAAewkP/GAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQS6CAWP8C9NSPKG6IRoAAAAAASUVORK5CYII=\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[ 8.  6.  3.  4.  5.  5.  1.]\n",
+      " [ 8.  3.  4. 10.  4.  9.  8.]\n",
+      " [10.  4.  5.  4.  5.  4.  4.]\n",
+      " [ 5.  5.  5.  5.  5.  5.  5.]\n",
+      " [ 4.  4.  2.  2.  2.  1.  3.]\n",
+      " [ 4.  2.  2.  2.  2.  2.  3.]]\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [8. 3. 0. 0. 0. 0. 8.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 5. 5. 5. 0. 5.]\n",
+      " [0. 0. 2. 2. 2. 0. 0.]\n",
+      " [0. 0. 2. 2. 2. 0. 0.]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAC9ElEQVR4nO3dsUtWURzH4XPLoMkaDCzIIlrCKXSpXFojGhprbG0r6B9wcQgajCbbbIhwCsdaqkmniBqirCWpiGozgtvYkMI9+l79Ss8z/zweuLwf7gvv4TRt2xaARHt2egMAGxEoIJZAAbEECoglUEAsgQJiDdUMN03jNwkD0rZts9m/HTmwtx0b7f7oPu4bq1r/+Ku3VfMr4yer5vtUs/eVUsrXLTyHUnwmBmm9z0RVoMgwNjpUnt870nn++uidqvXnxi9WzV97WLd+n2r2PtnjPhgMX/GAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQS6CAWH5Jvgt9+/yrPLi70nl+bqHul+E3H52ump9dvd55dvX1StXa0+cfV82/n+0+uzZTtTQ7wBsUEEuggFgCBcQSKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcRq2rb7rTmu2BmcrVw7Ndk07VLFfM35tM2Yv/K8t7WvPjjX29qXZkp5+dG1UynW+0x4gwJiCRQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQK+raqZpjN31rmi2dgOjV2tFS3t/a6V381edxlP/du56PKdU40f12sYHxBgXEEigglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsarO4k1MTJSlpe4XHiWfZ9vN3vwYLmcXpzrPX/j0pGr96VNnarfUm9uXv1fNz98/3Hn2649nlbv519DwcBmZ6v4sVhcXq9bf/+J87ZZ69HTb/6M3KCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIVXUWb3l52fm6XSjpbF2tGwsHq+bn+9nGhn7//Fl9vo7uvEEBsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsQQKiCVQQKymbdvuw03zpZTyob/t/DeOtW17aLN/7DkMzJaeQymexQCt+yyqAgWwnXzFA2IJFBBLoIBYAgXEEigglkABsQQKiCVQQCyBAmL9AUl7fqiGMokuAAAAAElFTkSuQmCC\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[ 8.  7.  6.  7.  7.  7.  6.]\n",
+      " [ 1.  6.  4.  8. 10.  7. 10.]\n",
+      " [ 6. 10. 10.  5.  5. 10. 10.]\n",
+      " [10. 10. 10. 10. 10. 10. 10.]\n",
+      " [ 9.  2.  3.  3.  3.  4.  9.]\n",
+      " [ 9.  3.  3.  3.  3.  3.  9.]]\n",
+      "[[ 0.  0.  0.  0.  0.  0.  0.]\n",
+      " [ 0.  0.  0.  0.  0.  0.  0.]\n",
+      " [ 0.  0.  0.  0.  0.  0.  0.]\n",
+      " [ 0.  0. 10. 10. 10.  0.  0.]\n",
+      " [ 9.  0.  3.  3.  3.  0.  0.]\n",
+      " [ 0.  0.  3.  3.  3.  0.  0.]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAADMklEQVR4nO3dP2hVZxzH4feEQOyFIMVKk0Kp7aJCFxu3bnZzKZROpVPtImaz4qBOrrppXdTRUWgHt9qpW2iWUtqh0j9UFFsoBFKD4OnQraRyfsk95it5nvl337xwuB/OhfPmdH3fN4BEMzu9AYD/I1BALIECYgkUEEuggFgCBcSarQx3XeeZhCnp+77b6mfn57p+32T4/N6Z+dL6vy++WtvQvZ8Gj84u7iktvf/J36X5tbXhs3+ut7a2sfXr0JrvxDRt9p0oBYoM+yatXTg2fP74nqOl9c+fO13b0McfDh59+dyh0tKnHqyW5u/eHT57sTDLzvATD4glUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbEECohVepJ8aWmpraysDJ7vum2dIpiq6n8OTdr7f83Pt3as8CT55YW/SuvfOfN5af54YfbwrdqT4QunDpTmPzo8fPbqd/dLa2/m7ddb+/Ls8Pm3lrf9J6fm+ge1+U9vj7OPZ3EHBcQSKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxusoZtRf5FTtpZ/G289qpVyYz/fuH5gbP31ksHNxrrd07/X1pfvmzB6X5iiuXFkrzlb188cNG+2P96a597dQnR2qvALu5+niknfxrs++EOygglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsaKOulSPo4wp+ajLOwfn+m+uvTbN7exK75683779cSP6qMv6VwfGXL5k8t7Po67vqAvwQhEoIJZAAbEECoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbFmd3oD1D2cvNkuH7k5eP7E8vnS+ou3vq5uaTQniq9Gqvj1tyejrT0tL418/i2dOygglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsQQKiOUs3i6QdLau6sbq49L8mGf3eP7cQQGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBArK7v++HDXfeotfbLeNvZNd7o+37/Vj/sOkzNtq5Da67FFG16LUqBAnie/MQDYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBALIECYv0DSmCQRhYw3CcAAAAASUVORK5CYII=\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[ 1.  3.  7.  2.  4. 10.  1.]\n",
+      " [10.  4.  9.  2.  1.  8.  8.]\n",
+      " [ 2.  9.  8.  2.  2.  8.  2.]\n",
+      " [ 8.  8.  8.  8.  8.  8.  8.]\n",
+      " [ 5.  3.  6.  6.  6.  2.  2.]\n",
+      " [ 5.  6.  6.  6.  6.  6.  2.]]\n",
+      "[[ 0.  0.  0.  0.  0.  0.  0.]\n",
+      " [10.  0.  0.  0.  1.  0.  0.]\n",
+      " [ 0.  0.  0.  0.  2.  0.  0.]\n",
+      " [ 0.  0.  8.  8.  8.  0.  0.]\n",
+      " [ 0.  0.  6.  6.  6.  0.  0.]\n",
+      " [ 0.  0.  6.  6.  6.  0.  0.]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAADJ0lEQVR4nO3dMWxVVRzH8XOFaLsYajAGB6wMRkbSkclOpKNhqkyUDUc3dXIzYYOwAJuOjI1T3To1IU6MICG2kQANQW1N9Lo5PZP7f7z7+jN8PvO/Jyc5ud+8l7zT2/V93wASvXHUGwD4LwIFxBIoIJZAAbEECoglUECs45Xhruv8JmFG+r7vpv3bk13XLxfm//7ozdL6z379szR/8M7i4Nljb58urf3Xi0el+cr6+4/22m9P96c+h9Y8E7M06ZkoBYoMy621ncL8HzffL63//Y2Hpfn76x8Pnj2xer209v7W56X5yvo3Vy+X1mb+fMUDYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBALIECYpV+Sb6ystJ2dob/hrnrarcIxvzvntW9JHt8ZrF98e3wX2+fvXGvtP7G3dp+Nh7cHzx7de98ae2F7U9K8yeWPhs8e/f3X0prT/LemcV2qXAW1y7WzqL6RGycWxg8e+feQXH1+fMJCoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJidZX7b16xMzuv8tqp5aWu/3p1+PzaQu0+2+bBj6X5yvrVtdevLpfm929/OHj2wg877aenL7x2KsSkZ8InKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxoq66jPnaqbFN8YqtuV11YbJvtlp7+Hz6c2ht/Gfi1qdjrj6uK8XXl7nqAvyvCBQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQS6CAWMePegOpqnfr5unlYde2H7w1eH7py7Ol9b+7c6q6pdHsbm6W5jfOLQyefXl4WN3O3H11sHbUW/jXXvEsZsEnKCCWQAGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqI5S7eayDpbl3VqbXaXbS13a2RdsJR8AkKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsQQKiCVQQCyBAmJ1fd8PH+66J621n8fbzmvjg77v3532j53DzLzSObTmLGZo4lmUAgUwT77iAbEECoglUEAsgQJiCRQQS6CAWAIFxBIoIJZAAbH+Ac0Wl+zWk7GMAAAAAElFTkSuQmCC\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[ 6.  8.  1.  4.  5.  4.  5.]\n",
+      " [ 4.  1.  6.  2. 10.  3.  8.]\n",
+      " [ 1.  3.  1.  3.  1.  8.  3.]\n",
+      " [ 1.  1.  1.  1.  1.  1.  1.]\n",
+      " [ 2.  4.  9.  9.  9.  6.  2.]\n",
+      " [ 2.  9.  9.  9.  9.  9.  2.]]\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [4. 0. 6. 2. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 1. 0.]\n",
+      " [0. 0. 9. 9. 9. 0. 0.]\n",
+      " [0. 0. 9. 9. 9. 0. 0.]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASgAAABYCAYAAABGUmpsAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAC3UlEQVR4nO3dvWoUURzG4TPBbxQkKBiDsVXBQrBLaZdCwdJSbQRLIY2ll5DSWGkraOEVaFoFG62CFhpwUVIoih/HG4gwZ7OzeSXPU//37IFhfszCHLartRaARDM7vQGAfxEoIJZAAbEECoglUEAsgQJi7WkZ7rrOOwkTUmvtxv3s7OGuzs/2n5/5eqRp/dHCyab5uVdve8/+ONW0dLO9B/f1nn2/8auMNn+PfR1KcU9M0lb3RFOgyDA/W8rT5f7zB9YuNq2/unKvaf7u7GLv2fWGfY/jxNn+cV289WHAnTAJfuIBsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglkABsbxJvgscvbHeNL/+8ctAOynl0bUXTfMtb6mXUsrc0rnes6ONz01rM32eoIBYAgXEEigglkABsQQKiCVQQCyBAmIJFBBLoIBYAgXEEigglrN4u8DtOxttH3jYNr6+0jB76dJga5dSylp51nv28uu2tZk+T1BALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBALIECYnW11v7DXdd/uJTSsnaarusGXb/WOvYXHDs0U6+c2T/J7exKT978KKNvf7Z1oVvviesXDmzn63bUg5ffB11/q3vCExQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQS6CAWAIFxBr0LF6rpLN7yWfxzi909ely//lH1140rT93c7FxR8O58bhtfm5pqffs6Pnz8nNzc6pn8Vrdvzrk6m1uNl6LVs7iAf8VgQJiCRQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJiCRQQa89Ob4DhJZ2ta7XaehZt2L9uY8o8QQGxBAqIJVBALIECYgkUEEuggFgCBcQSKCCWQAGxBAqIJVBArNb/xftUSnk33HZ2jdO11uPjfth1mJhtXYdSXIsJ2vJaNAUKYJr8xANiCRQQS6CAWAIFxBIoIJZAAbEECoglUEAsgQJi/QV0MH6Oj6xhdwAAAABJRU5ErkJggg==\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[10.  3.  5.  6. 10. 10.  8.]\n",
+      " [10.  8.  7.  6.  5.  6.  9.]\n",
+      " [10.  2.  7. 10.  2. 10. 10.]\n",
+      " [ 2.  2.  2.  2.  2.  2.  2.]\n",
+      " [10.  5.  1.  1.  1.  6.  9.]\n",
+      " [10.  1.  1.  1.  1.  1.  9.]]\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 2. 2. 2. 2. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 0. 0.]]\n"
+     ]
+    }
+   ],
+   "source": [
+    "#show a few\n",
+    "for i in range(5):\n",
+    "    rh = random.choice(range(NUM_HOUSES))\n",
+    "    showMask(X_dat[rh].squeeze(),y_dat[rh])\n",
+    "    print(y_dat[rh])\n",
+    "    print(X_dat[rh].squeeze()*y_dat[rh])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 721,
+   "id": "bb16944c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Model: \"sequential_63\"\n",
+      "_________________________________________________________________\n",
+      " Layer (type)                Output Shape              Param #   \n",
+      "=================================================================\n",
+      " conv2d_166 (Conv2D)         (None, 6, 7, 32)          160       \n",
+      "                                                                 \n",
+      " conv2d_167 (Conv2D)         (None, 6, 7, 16)          2064      \n",
+      "                                                                 \n",
+      " conv2d_168 (Conv2D)         (None, 6, 7, 11)          715       \n",
+      "                                                                 \n",
+      " dense_52 (Dense)            (None, 6, 7, 11)          132       \n",
+      "                                                                 \n",
+      "=================================================================\n",
+      "Total params: 3,071\n",
+      "Trainable params: 3,071\n",
+      "Non-trainable params: 0\n",
+      "_________________________________________________________________\n"
+     ]
+    }
+   ],
+   "source": [
+    "from tensorflow.keras.models import Sequential\n",
+    "from tensorflow.keras.layers import Dense, Input, Conv2D\n",
+    "from keras import backend as K\n",
+    "\n",
+    "\n",
+    "#train the masking model\n",
+    "maskModel = Sequential()\n",
+    "maskModel.add(Input(shape=(6,7,1)))\n",
+    "maskModel.add(Conv2D(32,2,activation=\"relu\", padding=\"same\"))\n",
+    "maskModel.add(Conv2D(16,2,activation=\"relu\", padding=\"same\"))\n",
+    "maskModel.add(Conv2D(11,2,activation=\"sigmoid\", padding=\"same\"))\n",
+    "maskModel.add(Dense(11,activation=\"sigmoid\"))\n",
+    "\n",
+    "def mask_loss(y_true,y_pred):\n",
+    "    zero = tf.constant(0, dtype=tf.float32)\n",
+    "    y_true2 = tf.cast(y_true,tf.float32)\n",
+    "    y_pred2 = tf.cast(y_pred,tf.float32)\n",
+    "    mask = tf.cast(tf.where(tf.not_equal(y_true2, zero),1,0),tf.float32)\n",
+    "    mask_pred = tf.math.multiply(y_pred2,mask)\n",
+    "    #return -(97.0 * y_true2 * K.log(mask_pred) + 3.0 * (1.0 - y_true2) * K.log(1.0 - mask_pred)) / 100.0 #wbce\n",
+    "    #return tf.math.reduce_mean(tf.math.abs(y_true2 - tf.math.multiply(y_pred2,mask)) )   #mse\n",
+    "    return tf.losses.mean_squared_error(y_true2,mask_pred)\n",
+    "maskModel.compile(optimizer='adam',loss=mask_loss)\n",
+    "maskModel.summary()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 722,
+   "id": "092435d6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Epoch 1/20\n",
+      "157/157 [==============================] - 1s 2ms/step - loss: 0.0028\n",
+      "Epoch 2/20\n",
+      "157/157 [==============================] - 0s 2ms/step - loss: 6.4052e-04\n",
+      "Epoch 3/20\n",
+      "157/157 [==============================] - 0s 2ms/step - loss: 2.8317e-04\n",
+      "Epoch 4/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.6194e-04\n",
+      "Epoch 5/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.0577e-04\n",
+      "Epoch 6/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 7.4806e-05\n",
+      "Epoch 7/20\n",
+      "157/157 [==============================] - 0s 2ms/step - loss: 5.5822e-05\n",
+      "Epoch 8/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 4.3288e-05\n",
+      "Epoch 9/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 3.4522e-05\n",
+      "Epoch 10/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 2.8146e-05\n",
+      "Epoch 11/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 2.3340e-05\n",
+      "Epoch 12/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.9635e-05\n",
+      "Epoch 13/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.6705e-05\n",
+      "Epoch 14/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.4353e-05\n",
+      "Epoch 15/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 1.2431e-05\n",
+      "Epoch 16/20\n",
+      "157/157 [==============================] - 1s 4ms/step - loss: 1.0844e-05\n",
+      "Epoch 17/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 9.5140e-06\n",
+      "Epoch 18/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 8.3927e-06\n",
+      "Epoch 19/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 7.4356e-06\n",
+      "Epoch 20/20\n",
+      "157/157 [==============================] - 0s 3ms/step - loss: 6.6156e-06\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "<keras.callbacks.History at 0x1705a7340>"
+      ]
+     },
+     "execution_count": 722,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "maskModel.fit(X_dat,y_dat2,epochs=20,batch_size=16,verbose=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 726,
+   "id": "a03c4bd8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def showModelPred(model,bin_house,cat_house,debug=False):\n",
+    "    #get prediction, un-onehot, and apply mask\n",
+    "    pred_dat = np.argmax(model.predict(np.expand_dims(bin_house,axis=0),verbose=False).squeeze(),axis=-1)*bin_house.squeeze()\n",
+    "    comp_house = np.argmax(cat_house,axis=-1)\n",
+    "    \n",
+    "    #normalize colors\n",
+    "    #v = np.unique(np.hstack([comp_house,pred_dat]))\n",
+    "    v = list(range(11))\n",
+    "    norm = BoundaryNorm(v, len(v)-1)\n",
+    "    \n",
+    "    #setup\n",
+    "    labels = [\"x\",\"y\",\"pred\"]\n",
+    "    c = ['gray',maskmap,maskmap]\n",
+    "    m = [bin_house,comp_house,pred_dat]\n",
+    "    n = [None,norm,norm]\n",
+    "    \n",
+    "    \n",
+    "    #show\n",
+    "    plt.figure(figsize=(5,2))\n",
+    "    plt.axis('off')\n",
+    "    for i in range(3):\n",
+    "        plt.subplot(1, 3, i+1)\n",
+    "        plt.axis('off')\n",
+    "        plt.imshow(np.array(m[i]).squeeze(),cmap=c[i],norm=n[i])\n",
+    "        plt.title(labels[i])\n",
+    "    plt.show()\n",
+    "    \n",
+    "    if debug:\n",
+    "        print(comp_house)\n",
+    "        print(pred_dat)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 727,
+   "id": "1051be0b",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASUAAABkCAYAAADAFCYKAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE1ElEQVR4nO3dTahUdRyH8ecrUpdsIUpkUroQgsqC3LQoSCjIRKhloG3CopA2RVhYEVn7LKIgSuwNC6MIMpAWbYKIICiyNoaVvSG+UARWxL/FPcgQKHf0juc3M88HBmbmzBx+48Az58z1zElrDUmqYkHfA0jSIKMkqRSjJKkUoySpFKMkqRSjJKkUoyRNsSQHk9zc9xyDjJKkUoySNCGSLOx7hvkwllFKsirJ0SRrutvLkxxOsrbfyaZLkoeSvPO/+55NsqOvmSZRt4v1SJL9SY4l2ZlkJsnaJIeSbE3yK7AzyYIkDyc5kORIkreTLBlY151Jvu+WbevxZZ3SWEaptXYA2Aq8nuQCYCewq7X2ca+DTZ/XgXVJFsPJT+o7gFf7HGpCbQRuAVYBlwOPdvcvA5YAK4F7gPuB24EbgeXAMeB5gCRXAi8Ad3bLlgKXnqsXMGettbG9AO8DXwFfAuf3Pc80XoAPgbu76xuA/X3PNGkX4CBw78Dt9cABYC3wNzAzsOwb4KaB25cA/wALgceB3QPLFnXPv7nv1zh4GcstpQEvAauB51prf/U9zJTaBWzqrm8CXutxlkn248D175nd0gE43Fo7MbBsJfBukuNJjjMbqX+Bi7vnnFxPa+1P4Mgohz4TYxulJBcCzwAvA08M7jfrnHoPuCbJama3lN7od5yJddnA9RXAz931///Mx4/Ara21xQOXmdbaT8Avg+vpvvpYOsqhz8TYRgnYAXzeWtsMfAC82PM8U6n7lN4DvAl81lr7oeeRJtWWJJd2H77bgLdO8bgXgaeTrARIclGS27ple4ANSW5Ich7wJAUbUG6guej+kdcB93V3PQCsSbKxv6mm2i7gatx1G6U3gX3Ad8x+n/TUKR63g9nvWvcl+QP4FLgOoLX2NbClW9cvzH4Jfmi0Yw8v3Rde0hlLsgL4FljWWvu973kmTZKDwObW2kd9z3IujOWWkupIsoDZLdXdBknzYSL+B6j6kWQR8Buzfw1a1/M4mhDuvkkqxd03SaWcdvctiZtR86S1lrN5vu/F/Dmb98L3Yf6c6n1wS0lSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUim9/nTJKH+hIDmrQ82mzoN7rh3q8ceu2D7nx75y1YZhx5la249+MrJ1P7bk+pGtez65pSSpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqZTTniG32jmuhjlWrtqxb5N23rdl69fP+bG/7t07wkmGN0nnfRvmWLlqx7553jdJY8EoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKqXXw0xGeYqlYY36sJRJO8xknFU+zGSUp1ga1qgPS/EwE0ljwShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKmVh3wOohruunel7hJNe+eJE3yOoR24pSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqJa21vmeQpJPcUpJUilGSVIpRklSKUZJUilGSVIpRklTKf4i7D4pd+HMJAAAAAElFTkSuQmCC\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 4 7 0 0 0]\n",
+      " [0 0 0 9 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 2 2 2 0 0]\n",
+      " [0 0 2 2 2 0 0]]\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 5 5 0 0 0]\n",
+      " [0 0 0 5 0 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASUAAABkCAYAAADAFCYKAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAEdklEQVR4nO3cTahUZRzH8e9PpCRbiBKZmC6EFmEt3LQoSEjIQihaBerOopA2QVhYEb3ss4iECrFMLOyFIAJp0SaIaFVkbQxNy0LUKIJeiKfFHGwSbpje6/O/c78fOHBmzp2Z/zjwneecq6a1hiRVMa/3AJI0zihJKsUoSSrFKEkqxShJKsUoSSrFKElzWJLDSdb1nmOcUZJUilGSJkSS+b1nmA6zMkpJViU5lWTNcHtZkhNJ1vadbG5J8lCSt86677kkO3rNNImGU6xHkhxMcjrJriQLkqxNcizJtiQ/ALuSzEvycJJDSU4meTPJ4rHn2pzkyHBse8e3NaVZGaXW2iFgG7AnyWXALmB3a+2jroPNPXuA9UkWwZlv6ruBV3sONaE2ArcCq4BrgEeH+5cCi4GVwL3AA8CdwM3AMuA08AJAkmuBF4HNw7ElwPKL9QbOWWtt1m7Ae8AXwOfApb3nmYsb8AFwz7C/ATjYe6ZJ24DDwH1jt28HDgFrgT+ABWPHvgJuGbt9FfAnMB94HNg3dmzh8Ph1vd/j+DYrV0pjXgJWA8+31n7vPcwctRvYNOxvAl7rOMskOzq2f4TRSgfgRGvtt7FjK4F3kvyU5CdGkfoLuHJ4zJnnaa39CpycyaHPx6yNUpLLgWeBV4Anxs+bdVG9C1yfZDWjldLrfceZWFeP7a8Avh/2z/5vPo4Ct7XWFo1tC1pr3wHHx59nuPSxZCaHPh+zNkrADuCz1toW4H1gZ+d55qThW3o/sBf4tLX2beeRJtXWJMuHL9/twBtT/NxO4JkkKwGSXJHkjuHYfmBDkpuSXAI8ScEGlBvoXAx/yOuB+4e7HgTWJNnYb6o5bTdwHZ66zaS9wAHgG0bXk56e4ud2MLrWeiDJL8AnwA0ArbUvga3Dcx1ndBH82MyO/f9luOAlnbckK4CvgaWttZ97zzNpkhwGtrTWPuw9y8UwK1dKqiPJPEYr1X0GSdNhIv4GqPpIshD4kdFvg9Z3HkcTwtM3SaV4+iaplP88fUviMmqatNZyIY/3s5g+F/JZ+DlMn6k+B1dKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkqZ3/PFW2s9X/5fkvQeQeKpUx/3HuGMxxbf2OV1XSlJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSql6799Ux0v39V7gn9sebv3BOrJlZKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFLSWus9gySd4UpJUilGSVIpRklSKUZJUilGSVIpRklSKX8D0WLdg+UsTQwAAAAASUVORK5CYII=\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 1 1 1 0 0]\n",
+      " [0 0 1 1 1 0 0]]\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASUAAABkCAYAAADAFCYKAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE+klEQVR4nO3dS4gcZRSG4fcLosG40ARRgyZKwIWoi2wEFQwkYJSA4kowWXlBCW4EUTGKeNkbRQyohHgJURRFEEFU3CgirhQvm0i8K6IRxTvyu5giNIGJqZnpqTPd7wMF1V3VNaf7h6//qpkzldYaklTFsqELkKRRhpKkUgwlSaUYSpJKMZQklWIoSSrFUJKmWJIDSTYNXccoQ0lSKYaSNCGSHDN0DQthSYZSknVJfkqyvnu8OskPSTYMW9l0SXJrkhcOe+6hJDuHqmkSdadYdyT5OMnBJLuTLE+yIclXSW5L8h2wO8myJLcn2Z/kxyTPJVk5cqxtST7vtt054Nua1ZIMpdbafuA24OkkxwO7gT2ttbcGLWz6PA1sTnIiHPqmvhp4csiiJtQ1wKXAOuBsYEf3/KnASmAtcANwM3AlcAmwGjgIPAKQ5BzgUWBbt20VcPpivYGj1lpbsgvwMvAh8AFw3ND1TOMCvApc361vAT4euqZJW4ADwI0jjy8H9gMbgL+B5SPbPgE2jjw+DfgHOAa4G9g3sm1F9/pNQ7/H0WVJzpRGPAacCzzcWvtr6GKm1B5ga7e+FXhqwFom2Zcj658zM9MB+KG19ufItrXAi0l+TvIzMyH1L3BK95pDx2mt/Qb8OM6i52LJhlKSE4AHgSeAe0bPm7WoXgLOT3IuMzOlZ4YtZ2KdMbK+BvimWz/833x8CVzWWjtxZFneWvsa+Hb0ON2lj1XjLHoulmwoATuB91tr1wGvALsGrmcqdd/SzwN7gfdaa18MXNKk2p7k9O7L907g2Vn22wU8kGQtQJKTk1zRbXse2JLk4iTHAvdSMAPKFXQ0ug95M3BT99QtwPok1wxX1VTbA5yHp27jtBd4DfiMmetJ98+y305mrrW+luRX4F3gAoDW2kfA9u5Y3zJzEfyr8ZbdX7oLXtKcJVkDfAqc2lr7Zeh6Jk2SA8B1rbXXh65lMSzJmZLqSLKMmZnqPgNJC2Ei/gJUw0iyAviemd8GbR64HE0IT98kleLpm6RSjnj6lsRp1AJprWU+r3csFs58xsJxWDizjYMzJUmlGEqSSjGUJJViKEkqxVCSVIqhJKkUQ0lSKYaSpFIMJUmlGEqSSjGUJJViKEkqxVCSVIqhJKkUQ0lSKYaSpFIMJUmlGEqSSjGUJJViKEkqxVCSVIqhJKkUQ0lSKYPetrvv3XmTed067Ygq1TKE+356u9f+d628aEyVTLdK4zBULc6UJJViKEkqxVCSVIqhJKkUQ0lSKYaSpFIMJUmlGEqSSjGUJJViKEkqJf/TXtGr96Jv60Xf1o5xGnfbSGttXj/gjzfP6vVhHb/xQK/j//7Gmb32H6e+tfc1n7G4/+A7vcahb+tF39aOcRp3K9Fs4+BMSVIphpKkUgwlSaUYSpJKMZQklWIoSSrFUJJUiqEkqRRDSVIphpKkUgwlSaUcsfctyVib0yr1vi2CefW+jX0sxnnwnvp+UI9f1W//a1+Ye+/buMehUu/buO046UJ73yTVZyhJKsVQklSKoSSpFENJUimGkqRSDCVJpRhKkkoxlCSVYihJKsVQklSKvW+d6vd9s/dt4cxnLKap9837vkkShpKkYgwlSaUYSpJKMZQklWIoSSrFUJJUiqEkqRRDSVIphpKkUgwlSaUcsfdNkhabMyVJpRhKkkoxlCSVYihJKsVQklSKoSSplP8Ab9YohHaQ1noAAAAASUVORK5CYII=\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 5 0 0 0 0]\n",
+      " [8 0 8 8 8 0 0]\n",
+      " [0 0 6 6 6 0 1]\n",
+      " [0 0 6 6 6 0 0]]\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 5 0 0 5 0]\n",
+      " [5 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 5 5]\n",
+      " [0 0 5 5 5 0 0]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASUAAABkCAYAAADAFCYKAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE4UlEQVR4nO3dS6iUdRyH8ecrUodsIUpkYroQWoQFtWlRkJCQhVC0CtRNWhTRJogKK6LLPotIqBDLxMIuRBFIizZBRBAUWhvD0m6IF4rAivi3OC82SEcczxnf35nzfGBg7v7GF575v6PvTFprSFIV8/oeQJIGGSVJpRglSaUYJUmlGCVJpRglSaUYJWkOS3IwyZq+5xhklCSVYpSkMZFkft8zzIRZGaUkK5McS3Jtd3lpkiNJVvc72dyS5KEkb5923fNJtvY10zjqdrEeTbI/yfEk25NMJFmd5HCSh5P8AmxPMi/JI0kOJDma5K0kiwaea2OS77vbtvT4sqY0K6PUWjsAPAzsTHIRsB3Y0Vr7pNfB5p6dwNokC+HUO/WdwGt9DjWm1gM3AyuBK4DHuuuXAIuAFcA9wAPA7cCNwFLgOPAiQJIrgZeAjd1ti4Fl5+sFnLXW2qw9Ae8DXwNfARf2Pc9cPAEfAXd359cB+/ueadxOwEHg3oHLtwIHgNXAX8DEwG3fADcNXL4M+BuYDzwB7B64bUH3+DV9v8bB06xcKQ14GVgFvNBa+7PvYeaoHcCG7vwG4PUeZxlnhwbOf8/kSgfgSGvt5MBtK4B3k5xIcoLJSP0DXNo95tTztNb+AI6OcuhzMWujlORi4DngVeDJwf1mnVfvAVcnWcXkSumNfscZW5cPnF8O/NSdP/1rPg4Bt7TWFg6cJlprPwI/Dz5P99HH4lEOfS5mbZSArcAXrbXNwIfAtp7nmZO6d+k9wC7g89baDz2PNK7uT7Kse/PdArw5xf22Ac8mWQGQ5JIkt3W37QHWJbkhyQXAUxRsQLmBzkb3l7wWuK+76kHg2iTr+5tqTtsBXIW7bqO0C9gLfMfk50nPTHG/rUx+1ro3ye/AZ8B1AK21fcD93XP9zOSH4IdHO/bw0n3gJZ2zJMuBb4ElrbXf+p5n3CQ5CGxurX3c9yznw6xcKamOJPOYXKnuNkiaCWPxP0DVjyQLgF+Z/NegtT2PozHh7pukUtx9k1TKGXffkriMmiGttUzn8W6LmTOdbeF2mDlTbQdXSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSjFKkkoxSpJKMUqSSpnRry4Z9hsHkmkdDtar6t+u8Modw91/8zujmeN8uGvfB32PMKWnj3061P0fX3T9iCYZvWFf61RcKUkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKmVsf7Z7Lh2H9382DXks2+bRjAHAsEcJjteWqGO2HIfnSklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKTnT4RhJRvo7QpV+pmjUh5m01qb1B4x8W4zyyYc06sNMprMtRr0dZupnimbCqA8zmWo7uFKSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklTK2P7Ekoaz6ZqJvkf4z5cn+55APXKlJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySpFKMkqRSjJKkUoySplLTW+p5Bkk5xpSSpFKMkqRSjJKkUoySpFKMkqRSjJKmUfwEv5QWGbsqlTAAAAABJRU5ErkJggg==\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 1 0 0 0 0 7]\n",
+      " [0 6 0 0 6 0 7]\n",
+      " [0 0 6 6 6 0 0]\n",
+      " [0 0 2 2 2 0 0]\n",
+      " [0 0 2 2 2 0 0]]\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 5 0 0 0 0 5]\n",
+      " [0 5 0 0 5 0 5]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]]\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAASUAAABkCAYAAADAFCYKAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMiwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy8qNh9FAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE3ElEQVR4nO3dTahUdRyH8ecrUpItRIlMLBdCi7AWbloUJCRkIhS1CbSdRSFtgrDohSjbZxEJJWJZVPRGUIG0aFNEtCqyNoamZRGpFEEvxL/FPcggXHO8dzy/mXk+MDAzZ+b4u/fAM2fmeuaktYYkVbGg7wEkaZBRklSKUZJUilGSVIpRklSKUZJUilGSpliSQ0nW9z3HIKMkqRSjJE2IJAv7nmE+jGWUkqxOcjzJ2u72iiS/JFnX72TTJckDSd467b5nkuzsa6ZJ1L3FeijJgSQnkuxJsijJuiRHk2xP8hOwJ8mCJA8mOZjk1yRvJFk6sK47kxzulj3c4481q7GMUmvtILAd2JfkImAPsLe19nGvg02ffcCGJEvg1Cv1HcBLfQ41oTYDNwGrgSuBR7r7lwNLgVXA3cB9wK3ADcAK4ATwHECSq4DngTu7ZcuAlefrBzhrrbWxvQDvAV8BXwIX9j3PNF6AD4G7uuubgAN9zzRpF+AQcM/A7Y3AQWAd8DewaGDZN8CNA7cvA/4BFgKPAa8NLFvcPX993z/j4GUs95QGvACsAZ5trf3V9zBTai+wpbu+BXi5x1km2ZGB64eZ2dMB+KW19ufAslXAO0lOJjnJTKT+BS7tnnNqPa21P4BfRzn0uRjbKCW5GHga2A08Pvi+WefVu8A1SdYws6f0Sr/jTKzLB65fAfzYXT/9az6OADe31pYMXBa11n4Ajg2up/voY9kohz4XYxslYCfwRWttK/A+sKvneaZS9yr9JvAq8Hlr7fueR5pU25Ks7F58HwZen+Vxu4CnkqwCSHJJklu6ZW8Cm5Jcn+QC4AkKNqDcQGej+yVvAO7t7rofWJtkc39TTbW9wNX41m2UXgX2A98x83nSjlket5OZz1r3J/kd+Ay4FqC19jWwrVvXMWY+BD862rGHl+4DL+mcJbkC+BZY3lr7re95Jk2SQ8DW1tpHfc9yPozlnpLqSLKAmT3V1wyS5sNE/A9Q9SPJYuBnZv4atKHncTQhfPsmqRTfvkkq5Yxv35K4GzVPWmuZy/PdFvNnLtvC7TB/ZtsO7ilJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSplYr+6ZNhvP0iGOxzKb1c4e8s3bhzq8T998MFQj3/y+CdDPX5aDft7enTpdSNd/2zcU5JUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVMr/nSF3qAO8hj1+bJrM9bxvu28f7nxjW9+ey7822eayLXac+HSo7TDs8WPTxPO+SRoLRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpZzzMJBnu0IZhVTpN0agPkZnrYSaj3hYv3jbKtQ9n1IfIzGVbjHo7VDpd1KgPkfEwE0ljwShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKsUoSSrFKEkqxShJKmVh3wOoBk/JpCrcU5JUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVIpRklSKUZJUilGSVEpaa33PIEmnuKckqRSjJKkUoySpFKMkqRSjJKkUoySplP8AQ+QSBZcwmVkAAAAASUVORK5CYII=\n",
+      "text/plain": [
+       "<Figure size 360x144 with 3 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 9 0 5]\n",
+      " [1 0 0 0 0 0 0]\n",
+      " [0 0 1 1 1 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]]\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [0 0 0 0 5 0 5]\n",
+      " [5 0 0 0 0 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]\n",
+      " [0 0 5 5 5 0 0]]\n"
+     ]
+    }
+   ],
+   "source": [
+    "#show some predictions\n",
+    "pickset = random.choices(range(len(X_dat)),k=5)\n",
+    "d = [(X_dat[i],y_dat2[i]) for i in pickset]\n",
+    "for di in d:\n",
+    "    showModelPred(maskModel,di[0],di[1],True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 701,
+   "id": "a12917da",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "1: 0.0992\n",
+      "2: 0.1010\n",
+      "3: 0.0993\n",
+      "4: 0.0987\n",
+      "5: 0.0994\n",
+      "6: 0.1002\n",
+      "7: 0.1008\n",
+      "8: 0.1028\n",
+      "9: 0.1000\n",
+      "10: 0.0987\n"
+     ]
+    }
+   ],
+   "source": [
+    "#show distribution of values in the training dataset\n",
+    "uq,cts = np.unique(y_dat,return_counts=True)\n",
+    "tot = sum(cts)\n",
+    "for u,c in zip(uq,cts):\n",
+    "    print(f\"{int(u)}: {c/tot:.4f}\")\n",
+    "# cts2 = [0]\n",
+    "# for x in cts:\n",
+    "#     cts2.append(x)\n",
+    "# fig = plt.figure(figsize = (10, 5))\n",
+    "# plt.bar(list(range(11)),cts2)\n",
+    "# plt.show()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 764,
+   "id": "08c49f44",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "1/1 [==============================] - 0s 26ms/step\n",
+      "tf.Tensor(\n",
+      "[[[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]\n",
+      "\n",
+      " [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]\n",
+      "\n",
+      " [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]\n",
+      "\n",
+      " [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]\n",
+      "\n",
+      " [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]\n",
+      "\n",
+      " [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]\n",
+      "  [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]], shape=(6, 7, 11), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]\n",
+      "\n",
+      " [[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.9856877  0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]\n",
+      "\n",
+      " [[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.98053575 0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]\n",
+      "\n",
+      " [[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.99095815\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.99095815\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.9909583\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]\n",
+      "\n",
+      " [[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.986843   0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.986843   0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.9868429  0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]\n",
+      "\n",
+      " [[0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.9868388  0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.98682994 0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.98672724 0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]\n",
+      "  [0.         0.         0.         0.         0.         0.\n",
+      "   0.         0.         0.         0.         0.        ]]], shape=(6, 7, 11), dtype=float32)\n",
+      "(6, 7, 11) (6, 7, 11)\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "nan"
+      ]
+     },
+     "execution_count": 764,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#test the loss\n",
+    "yi = y_dat2[2]\n",
+    "mi = maskModel.predict(np.expand_dims(X_dat[0],axis=0)).squeeze()\n",
+    "\n",
+    "\n",
+    "zero = tf.constant(0, dtype=tf.float32)\n",
+    "y_true2 = tf.cast(yi,tf.float32)\n",
+    "y_pred2 = tf.cast(mi,tf.float32)\n",
+    "mask = tf.cast(tf.where(tf.not_equal(y_true2, zero),1,0),tf.float32)\n",
+    "mask_pred = tf.math.multiply(y_pred2,mask)\n",
+    "print(y_true2)\n",
+    "#print(y_pred2)\n",
+    "print(mask_pred)\n",
+    "\n",
+    "print(y_true2.shape,mask_pred.shape)\n",
+    "#print(K.log(mask_pred))  #can't work because log of 0 is inf\n",
+    "cce = tf.keras.losses.CategoricalCrossentropy()\n",
+    "cce(tf.reshape(y_true2,(42,11)),tf.reshape(mask_pred,(42,11))).numpy()\n",
+    "\n",
+    "#-(97.0 * y_true2 * K.log(mask_pred) + 3.0 * (1.0 - y_true2) * K.log(1.0 - mask_pred)) / 100.0 #wbce"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 781,
+   "id": "1abb4255",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 1. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 1. 1. 1. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 1. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n",
+      "tf.Tensor(\n",
+      "[[0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]\n",
+      " [0. 0. 0. 0. 0. 0. 0.]], shape=(6, 7), dtype=float32)\n"
+     ]
+    }
+   ],
+   "source": [
+    "#print(tf.reshape(tf.transpose(y_true2,perm=[0,2,1]),(42,11)))\n",
+    "for i in range(11):\n",
+    "    print(y_true2[:,:,i])\n",
+    "#print(np.argmax(yi,axis=-1))\n",
+    "#plt.imshow(np.argmax(yi,axis=-1),cmap=maskmap)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 757,
+   "id": "60affcbb",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(2, 2, 3)\n",
+      "(4, 3)\n",
+      "[[0 1 0]\n",
+      " [1 0 0]\n",
+      " [1 0 1]\n",
+      " [1 0 0]]\n",
+      "[[0.05 0.95 0.  ]\n",
+      " [0.7  0.   1.  ]\n",
+      " [0.9  0.8  0.1 ]\n",
+      " [0.1  0.5  0.4 ]]\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "1.7061752"
+      ]
+     },
+     "execution_count": 757,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "cce = tf.keras.losses.CategoricalCrossentropy()\n",
+    "\n",
+    "a = [[[0, 1,0], [1,0,0]], [[1, 0,1], [1,0,0]]]\n",
+    "b = [[[0.05, 0.95,0], [0.7,0,1]], [[0.9, 0.8,0.1], [0.1,0.5,0.4]]]\n",
+    "a2 = tf.reshape(a,(4,3))\n",
+    "b2 = tf.reshape(b,(4,3))  #(batches, classes)\n",
+    "\n",
+    "print(np.array(a).shape)\n",
+    "print(a2.shape)\n",
+    "print(a2.numpy())\n",
+    "print(b2.numpy())\n",
+    "cce(a2,b2).numpy()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 357,
+   "id": "d8964ab2",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "tf.Tensor(\n",
+      "[[0 0 0 0 0 0 0]\n",
+      " [3 0 0 0 0 0 0]\n",
+      " [0 0 0 0 0 0 0]\n",
+      " [0 0 7 0 7 0 0]\n",
+      " [0 0 7 9 5 0 0]\n",
+      " [0 0 0 7 5 0 0]], shape=(6, 7), dtype=int64)\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "<matplotlib.image.AxesImage at 0x16f83cd60>"
+      ]
+     },
+     "execution_count": 357,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "#un-hot encode\n",
+    "print(tf.math.argmax(yi,axis=-1))\n",
+    "plt.imshow(np.argmax(yi,axis=-1))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 358,
+   "id": "3831eca6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Model: \"sequential_48\"\n",
+      "_________________________________________________________________\n",
+      " Layer (type)                Output Shape              Param #   \n",
+      "=================================================================\n",
+      " dense_36 (Dense)            (None, 10)                40        \n",
+      "                                                                 \n",
+      " dense_37 (Dense)            (None, 1)                 11        \n",
+      "                                                                 \n",
+      "=================================================================\n",
+      "Total params: 51\n",
+      "Trainable params: 51\n",
+      "Non-trainable params: 0\n",
+      "_________________________________________________________________\n",
+      "4/4 [==============================] - 0s 2ms/step - loss: 0.1190\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "<keras.callbacks.History at 0x16f8b4f40>"
+      ]
+     },
+     "execution_count": 358,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#test building a model\n",
+    "test = Sequential()\n",
+    "test.add(Dense(10,input_shape=(3,)))\n",
+    "test.add(Dense(1,activation='sigmoid'))\n",
+    "test.compile(loss='mse',optimizer='adam')\n",
+    "test.summary()\n",
+    "\n",
+    "xt = np.random.rand(100,3)\n",
+    "yt = np.random.rand(100,1)\n",
+    "test.fit(xt,yt)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "66d386c1",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "mask_loss"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "MCIntEvo",
+   "language": "python",
+   "name": "mcintevo"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.12"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
