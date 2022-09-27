@@ -122,21 +122,40 @@ if __name__ == "__main__":
     clean_zone(bounds, offset)
 
     #select randomly from the saved dataset
-    #imp_houses = np.load('../ingame_house_schematics/old_format_schematic_files/combined.npy',allow_pickle=True)
-    imp_houses = np.load('../house_combined_numpy_file/combined.npy',allow_pickle=True)
+    imp_houses = np.load('../ingame_house_schematics/old_format_schematic_files/combined.npy',allow_pickle=True)
+    # imp_houses = np.load('../house_combined_numpy_file/combined.npy',allow_pickle=True)
     
+    mini_set = random.choices(range(len(imp_houses)),k=5)
+    #mini_set = [37, 51, 75, 38, 65]
+    hset = imp_houses[mini_set]
 
     #clean the houses imported
     house_combined = []
-    for h in imp_houses:
-        house_combined.append(np.rot90(h,axes=(0,1)))
-    house_combined = np.array(house_combined)
+    for h in hset:
+        # house_combined.append(np.rot90(h,axes=(0,1)))
+        h2 = np.rot90(h,axes=(0,2))
+        
+        # remove bottom layer (got the ground as well)
+        h2 = h2[3:, 3:, 1:-2]
+        #h2 = h2[:,:,1:-2]
 
-    mini_set = random.choices(range(len(house_combined)),k=5)
+        print(h2.shape)
+
+        #binary
+        idx = np.nonzero(h2)
+        hb = np.zeros(shape=h.shape)
+        for i in range(len(idx[0])):
+            a,b,c = idx
+            hb[a[i]][b[i]][c[i]] = 1
+
+        #rotate again?
+        hb = np.rot90(hb,axes=(2,1))
+        house_combined.append(hb)
+    house_combined = np.array(house_combined)
 
     #render the houses
     print(f"-- Rendering combined houses: {mini_set} -- ")
-    render_house_set(house_combined[mini_set])
+    render_house_set(house_combined)
 
 
 
