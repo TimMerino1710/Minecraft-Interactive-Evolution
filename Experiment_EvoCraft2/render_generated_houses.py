@@ -1,4 +1,5 @@
 from bz2 import compress
+import tensorflow as tf
 from keras.models import load_model
 import keras.backend as K
 import numpy as np
@@ -106,12 +107,72 @@ def build_zone(blocks, offset):
 
 
 # renders our population by spawning them in on the evocraft server
-def render_house_set(houses):
-    offset = [0, 4, 0]
+def render_house_set(houses,offset=None):
+    if offset == None:
+        offset = [0, 4, 0]
     for struc in houses:
         # use evocraft to draw all these into the server.
         rendered_struc = build_zone(struc, offset)
-        offset[0] += 20
+        offset[0] += struc.shape[0]+4
+
+
+
+
+
+
+class Sampling(tf.keras.layers.Layer):
+    """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
+    def call(self, inputs):
+        mean_mu, log_var = inputs
+        epsilon = K.random_normal(shape=K.shape(mean_mu), mean=0., stddev=1.) 
+        return mean_mu + K.exp(log_var/2)*epsilon
+
+def mask_loss(y_true,y_pred):
+    #cast values
+    zero = tf.constant(0, dtype=tf.float32)
+    y_true2 = tf.cast(y_true,tf.float32)
+    y_pred2 = tf.cast(y_pred,tf.float32)
+    
+    #apply mask
+    mask = tf.cast(tf.where(tf.not_equal(y_true2, zero),1,0),tf.float32)
+    mask_pred = tf.math.multiply(y_pred2,mask)
+
+    return tf.losses.mean_squared_error(y_true2,mask_pred)
+
+
+# generate and show new sample from the VAE
+def generateVAESamples(vae_model,n=8,zsize=100):
+    vae_samples = np.around(vae_model.predict(np.random.normal(0,1,size=(n,zsize))).squeeze())
+    return vae_samples
+
+def paintHouses(houses,painter_model):
+    return painter_model.predict(houses).squeeze()
+
+
+#find most common element in a 3d array
+def mostComm3d(a):
+  ct = {}
+  for r in a:
+    for c in r:
+      for d in c:
+        di = int(d)
+        if di not in ct:
+          ct[di] = 0
+        ct[di] += 1
+  return max(ct, key=ct.get)
+
+
+#reduce the size of a house by half (take majority in 2x2 area)
+def halfHouse(h):
+  hh = np.zeros(shape=(int(h.shape[0]/2),int(h.shape[1]/2),int(h.shape[2]/2)))
+  for x in range(hh.shape[0]):
+    for y in range(hh.shape[1]):
+      for z in range(hh.shape[2]):
+        #set as majority in the area
+        ss = h[x*2:(x+1)*2,y*2:(y+1)*2,z*2:(z+1)*2]
+        mblock = mostComm3d(ss)
+        hh[x][y][z] = mblock
+  return hh
 
 
 #run the whole thing    
@@ -121,43 +182,25 @@ if __name__ == "__main__":
     offset = [0, 0, 0]
     clean_zone(bounds, offset)
 
-    #select randomly from the saved dataset
-    imp_houses = np.load('../ingame_house_schematics/old_format_schematic_files/combined.npy',allow_pickle=True)
-    # imp_houses = np.load('../house_combined_numpy_file/combined.npy',allow_pickle=True)
-    
-    mini_set = random.choices(range(len(imp_houses)),k=5)
-    #mini_set = [37, 51, 75, 38, 65]
-    hset = imp_houses[mini_set]
+    #import the models
+    vae = load_model(f"../beta_models/decoder-20_z100.h5",custom_objects={'Sampling': Sampling})
+    painter = load_model(f"../beta_models/painter-20ep.h5",custom_objects={'mask_loss': mask_loss})
 
-    #clean the houses imported
-    house_combined = []
-    for h in hset:
-        # house_combined.append(np.rot90(h,axes=(0,1)))
-        h2 = np.rot90(h,axes=(0,2))
-        
-        # remove bottom layer (got the ground as well)
-        h2 = h2[3:, 3:, 1:-2]
-        #h2 = h2[:,:,1:-2]
+    vae.summary()
+    painter.summary()
 
-        print(h2.shape)
+    #generate some samples and paint them
+    bin_samples = np.expand_dims(generateVAESamples(vae,5),axis=-1)
+    half_samples = np.array([halfHouse(bh) for bh in bin_samples])
+    paint_samples = paintHouses(half_samples,painter)
+    print(bin_samples.shape)
+    print(paint_samples.shape)
 
-        #binary
-        idx = np.nonzero(h2)
-        hb = np.zeros(shape=h.shape)
-        for i in range(len(idx[0])):
-            a,b,c = idx
-            hb[a[i]][b[i]][c[i]] = 1
-
-        #rotate again?
-        hb = np.rot90(hb,axes=(2,1))
-        house_combined.append(hb)
-    house_combined = np.array(house_combined)
-
-    #render the houses
-    print(house_combined.shape)
-    print(f"-- Rendering combined houses: {mini_set} -- ")
-    
-    render_house_set(house_combined)
+    #render the binary and painted houses on the other side
+    print(f"-- Rendering generated houses -- ")
+    rot_samp = np.array([np.rot90(hq,axes=(2,1)) for hq in bin_samples])
+    render_house_set(rot_samp)
+    #render_house_set(rot_samp,[0,4,0])
 
 
 
