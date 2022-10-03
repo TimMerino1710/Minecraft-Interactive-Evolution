@@ -16,7 +16,8 @@ client = minecraft_pb2_grpc.MinecraftServiceStub(channel)
 
 # compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[8, 9, 10, 11, 213],[12, 13, 19, 24, 179],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[64, 71, 193, 194, 195, 196, 197],[78, 79, 80, 174],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198],]
 compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123, 64, 71, 193, 194, 195, 196, 197, 8, 9, 10, 11, 213],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214, 12, 13, 19, 24, 179, 78, 79, 80, 174],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198]]
-id_to_type = {0:'AIR', 1:'STONE', 2:'GRASS', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 85:'FENCE'}
+real_comp_list = [0,1,2,5,12,18,20,42,53,85,126] #use the indices from above to translate to these block values (i.e. index = 4 -> block value = 12)
+#id_to_type = {0:'AIR', 1:'STONE', 2:'GRASS', 5:'PLANKS', 8:'WATER', 12:'SAND', 18:'LEAVES', 20:'GLASS', 22:'LAPIS_BLOCK', 37:'YELLOW_FLOWER', 43:'STONE_SLAB', 53:'OAK_STAIRS', 85:'FENCE'}
 
 
 BOUNDS_WORLD = [[-30000000, 29999999],  [4, 255], [-30000000, 29999999]]
@@ -113,6 +114,24 @@ def render_house_set(houses):
         rendered_struc = build_zone(struc, offset)
         offset[0] += 20
 
+def getCompLoc(bi):
+  for i in range(len(compression_list)):
+    if int(bi) in compression_list[i]:
+      return real_comp_list[i]
+  return 0
+
+def compress_house(house):
+    poss_values = sum(compression_list,[])
+    alter_house = abs(house)
+    for i in range(alter_house.shape[0]):
+        for j in range(alter_house.shape[1]):
+            for k in range(alter_house.shape[2]):
+                # if alter_house[i][j][k] not in poss_values:
+                #     alter_house[i][j][k] = 1
+                alter_house[i][j][k] = getCompLoc(alter_house[i][j][k])
+    alter_house = np.rot90(alter_house,axes=(2,1))
+    return alter_house
+
 
 #run the whole thing    
 if __name__ == "__main__":
@@ -131,6 +150,7 @@ if __name__ == "__main__":
 
     #clean the houses imported
     house_combined = []
+    
     for h in hset:
         # house_combined.append(np.rot90(h,axes=(0,1)))
         h2 = np.rot90(h,axes=(0,2))
@@ -139,18 +159,24 @@ if __name__ == "__main__":
         h2 = h2[3:, 3:, 1:-2]
         #h2 = h2[:,:,1:-2]
 
-        print(h2.shape)
+        # print(h2.shape)
+        #modify the values
+
+        #change oob values
+        alter_house = compress_house(h2)
+        print(np.unique(alter_house))
+        house_combined.append(alter_house)
 
         #binary
-        idx = np.nonzero(h2)
-        hb = np.zeros(shape=h.shape)
-        for i in range(len(idx[0])):
-            a,b,c = idx
-            hb[a[i]][b[i]][c[i]] = 1
+        # idx = np.nonzero(h2)
+        # hb = np.zeros(shape=h.shape)
+        # for i in range(len(idx[0])):
+        #     a,b,c = idx
+        #     hb[a[i]][b[i]][c[i]] = 1
 
-        #rotate again?
-        hb = np.rot90(hb,axes=(2,1))
-        house_combined.append(hb)
+        # #rotate again?
+        # hb = np.rot90(hb,axes=(2,1))
+        # house_combined.append(hb)
     house_combined = np.array(house_combined)
 
     #render the houses
