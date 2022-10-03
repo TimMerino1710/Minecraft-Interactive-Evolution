@@ -310,8 +310,13 @@ if __name__ == "__main__":
     clean_zone(bounds, offset)
 
     #import the models
-    VAE_MODEL_LOC = "../beta_models/z-100_d-1024"
-    VAE_MODEL_VER = "-50_beta"
+    # VAE_MODEL_LOC = "../beta_models/z-100_d-1024"
+    # VAE_MODEL_VER = "-50_beta"
+
+    VAE_MODEL_LOC = "../beta_models/z-16_d-256"
+    VAE_MODEL_VER = "-40"
+
+
     vae_enc = load_model(f"{VAE_MODEL_LOC}/encoder{VAE_MODEL_VER}.h5",custom_objects={'Sampling': Sampling})
     vae_dec = load_model(f"{VAE_MODEL_LOC}/decoder{VAE_MODEL_VER}.h5",custom_objects={'Sampling': Sampling})
     painter = load_model(f"../beta_models/painter-20ep.h5",custom_objects={'mask_loss': mask_loss})
