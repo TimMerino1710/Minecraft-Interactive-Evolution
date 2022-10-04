@@ -19,7 +19,8 @@ client = minecraft_pb2_grpc.MinecraftServiceStub(channel)
 
 # compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[8, 9, 10, 11, 213],[12, 13, 19, 24, 179],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[64, 71, 193, 194, 195, 196, 197],[78, 79, 80, 174],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198],]
 compression_list = [[0, 6, 26, 27, 28, 30, 55, 63, 65, 66, 68, 69, 70, 72, 77, 97, 104, 117, 127, 131, 132, 143, 144, 147, 148, 149, 167, 171, 50, 51, 76, 105, 123, 64, 71, 193, 194, 195, 196, 197, 8, 9, 10, 11, 213],[1, 4, 7, 29, 33, 34, 46, 48, 49, 52, 54, 61, 87, 89, 98, 45, 112, 120, 121, 139, 155, 158, 168, 169, 201, 202, 206, 215, 216, 218, 219, 220, 221, 222, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 35, 14, 15, 16, 21, 56, 73, 129, 153],[2, 3, 82, 88, 159, 172, 173, 214, 12, 13, 19, 24, 179, 78, 79, 80, 174],[5, 17, 25, 47, 58, 84, 96, 116, 130, 140, 146, 151, 154, 162],[18, 31, 32, 81, 86, 91, 103, 106, 161, 170, 199, 200, 207],[20, 92, 102, 160, 95],[22, 23, 41, 42, 57, 118, 133, 138, 145, 152, 165],[37, 38, 39, 40, 59, 83, 110, 115, 141, 142, 175],[43, 44, 92, 125, 126, 181, 182, 204, 205],[53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203],[85, 101, 107, 113, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 198]]
-real_comp_list = [0,1,2,5,12,18,20,42,53,85,126]
+real_comp_list = [0,1,2,5,12,18,20,42,53,85,126]   #air,stone,dirt,wood,sand,leaves,glass,metal,stairs,fence,slab
+
 
 #import the training data houses
 TRAIN_HOUSES = np.load('../ingame_house_schematics/old_format_schematic_files/combined.npy',allow_pickle=True)
@@ -123,7 +124,8 @@ def render_house_set(houses,offset=None):
 
 #pick some houses from the original training data
 def pickHouses(n=5,houses=None):
-    #select randomly from the saved dataset   
+    #select randomly from the saved dataset  
+    mini_set = [] 
     if not houses:
         mini_set = random.choices(range(len(TRAIN_HOUSES)),k=n)
         #mini_set = [37, 51, 75, 38, 65]
@@ -151,7 +153,7 @@ def pickHouses(n=5,houses=None):
         house_combined.append(alter_house)
 
     house_combined = np.array(house_combined)
-    return house_combined
+    return house_combined, mini_set
 
 #turn a house to binary
 def binHouse(h):
@@ -230,12 +232,24 @@ def mask_loss(y_true,y_pred):
     zero = tf.constant(0, dtype=tf.float32)
     y_true2 = tf.cast(y_true,tf.float32)
     y_pred2 = tf.cast(y_pred,tf.float32)
-    
-    #apply mask
-    mask = tf.cast(tf.where(tf.not_equal(y_true2, zero),1,0),tf.float32)
-    mask_pred = tf.math.multiply(y_pred2,mask)
 
-    return tf.losses.mean_squared_error(y_true2,mask_pred)
+    return K.categorical_crossentropy(y_true2, y_pred2)
+
+def super_mask_loss(weights):
+    
+    weights = K.variable(weights)
+        
+    def loss(y_true, y_pred):
+        # scale predictions so that the class probas of each sample sum to 1
+        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+        # clip to prevent NaN's and Inf's
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        # calc
+        loss = y_true * K.log(y_pred) * weights
+        loss = -K.sum(loss, -1)
+        return loss
+    
+    return loss
 
 
 #paint the houses and apply the masking
@@ -306,27 +320,33 @@ def reassignBlock(house):
 if __name__ == "__main__":
     # wipe the slate clean
     bounds = [200, 200, 200]
-    offset = [0, 0, 0]
+    offset = [-100, 0, -100]
     clean_zone(bounds, offset)
 
     #import the models
-    # VAE_MODEL_LOC = "../beta_models/z-100_d-1024"
-    # VAE_MODEL_VER = "-50_beta"
-
     VAE_MODEL_LOC = "../beta_models/z-16_d-256"
     VAE_MODEL_VER = "-40"
+
+    # VAE_MODEL_LOC = "../beta_models"
+    # VAE_MODEL_VER = "-20_z100"
 
 
     vae_enc = load_model(f"{VAE_MODEL_LOC}/encoder{VAE_MODEL_VER}.h5",custom_objects={'Sampling': Sampling})
     vae_dec = load_model(f"{VAE_MODEL_LOC}/decoder{VAE_MODEL_VER}.h5",custom_objects={'Sampling': Sampling})
-    painter = load_model(f"../beta_models/painter-20ep.h5",custom_objects={'mask_loss': mask_loss})
+    # painter = load_model(f"../beta_models/painter-20ep-SUPER.h5",custom_objects={'mask_loss': mask_loss})
+    # C_WEIGHTS = K.variable(np.array([1.0390064e+00, 1.6844545e+02, 1.1233010e+02, 7.8399384e+01,
+    #    1.7846365e+03, 1.7055167e+03, 0.0000000e+00, 1.5576258e+04,
+    #    1.7955702e+02, 3.4444226e+02, 3.7810300e+03]))
+    C_WEIGHTS = K.variable(np.array([1e-5,1,1,1,1,1,1,1,1,1,1]))
+    sml = super_mask_loss(C_WEIGHTS)
+    painter = load_model(f"../beta_models/painters/painter-10ep-3d.h5",custom_objects={'loss': sml})
 
     vae_enc.summary()
     vae_dec.summary()
     painter.summary()
 
     #pick some random houses
-    og_houses = pickHouses()
+    og_houses, house_ids = pickHouses()
 
     #binary them
     bin_og_houses = np.array([binHouse(h) for h in og_houses])
@@ -336,9 +356,9 @@ if __name__ == "__main__":
 
     #paint the regen
     paint_houses = paintHouses(vae_houses,painter)
-    
-    print(np.unique(og_houses[0]))
-    print(np.unique(paint_houses[0]))
+
+    #paint the og binary
+    paint_og_houses = paintHouses(bin_og_houses,painter)
 
     # print(og_houses.shape)
     # print(bin_og_houses.shape)
@@ -347,12 +367,15 @@ if __name__ == "__main__":
 
     #render the binary and painted houses on the other side
     print(f"-- Rendering VAE set houses [ ORIGINAL, RECON, PAINTED ]-- ")
+    print(house_ids)
     render_house_set([reassignBlock(og) for og in og_houses])
-    render_house_set([np.rot90(vh,axes=(2,1)) for vh in vae_houses],[0,4,20])
-    render_house_set([reassignBlock(hq) for hq in paint_houses],[0,4,40])
+    render_house_set([np.rot90(vh,axes=(2,1)) for vh in vae_houses],[0,4,30])
+    render_house_set([reassignBlock(hq) for hq in paint_houses],[0,4,50])
 
 
-
+    #paint the binary versions of the houses
+    render_house_set([np.rot90(vh,axes=(2,1)) for vh in bin_og_houses],[0,4,-30])
+    render_house_set([reassignBlock(hbq) for hbq in paint_og_houses], [0,4,-50])
 
 
 

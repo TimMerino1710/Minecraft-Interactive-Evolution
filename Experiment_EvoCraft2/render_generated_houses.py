@@ -133,12 +133,8 @@ def mask_loss(y_true,y_pred):
     zero = tf.constant(0, dtype=tf.float32)
     y_true2 = tf.cast(y_true,tf.float32)
     y_pred2 = tf.cast(y_pred,tf.float32)
-    
-    #apply mask
-    mask = tf.cast(tf.where(tf.not_equal(y_true2, zero),1,0),tf.float32)
-    mask_pred = tf.math.multiply(y_pred2,mask)
 
-    return tf.losses.mean_squared_error(y_true2,mask_pred)
+    return K.categorical_crossentropy(y_true2, y_pred2)
 
 
 # generate and show new sample from the VAE
