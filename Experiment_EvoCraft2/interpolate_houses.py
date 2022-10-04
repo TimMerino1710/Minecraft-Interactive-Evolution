@@ -1,4 +1,4 @@
-# REGENERATES HOUSES FROM VAE TO SHOW SIDE BY SIDE
+# INTERPOLATES BETWEEN 2 HOUSES
 
 from bz2 import compress
 import tensorflow as tf
@@ -123,7 +123,7 @@ def render_house_set(houses,offset=None):
 
 
 #pick some houses from the original training data
-def pickHouses(n=5,houses=None):
+def pickHouses(n=2,houses=None):
     #select randomly from the saved dataset  
     mini_set = [] 
     if not houses:
@@ -168,11 +168,6 @@ def binHouse(h):
 ###      VAE FUNCTIONS      ###
 
 
-# generate and show new sample from the VAE
-def generateVAESamples(vae_model,n=8,zsize=100):
-    vae_samples = np.around(vae_model.predict(np.random.normal(0,1,size=(n,zsize))).squeeze())
-    return vae_samples
-
 
 #scale up the house (double each block)
 def doubleHouse(h):
@@ -186,7 +181,7 @@ def doubleHouse(h):
                   continue
               for mi in m:
                   dh[x*2+mi[0]][y*2+mi[1]][z*2+mi[2]] = v
-  return dh
+  return np.expand_dims(np.array(dh),axis=-1)
 
 #reduce the size of a house by half (take majority in 2x2 area)
 def halfHouse(h):
@@ -198,22 +193,27 @@ def halfHouse(h):
         ss = h[x*2:(x+1)*2,y*2:(y+1)*2,z*2:(z+1)*2]
         mblock = mostComm3d(ss)
         hh[x][y][z] = mblock
-  return hh
+  return np.expand_dims(np.array(hh),axis=-1)
 
-# regenerate a house after passing through a VAE
-def regenVAEHouses(og_houses,enc,dec):
-    #double the size of the houses (trained on 32x32x32)
-    big_og_houses = np.array([doubleHouse(h) for h in og_houses])
+
+#interpolate in structure between 2 houses
+def interpolateHouses(two_houses,enc,dec,space=6):
+
+    #two_houses = X_TRAIN[[5690,8449]]
+    d2houses = np.array([doubleHouse(h) for h in two_houses])
+    twe = enc.predict(d2houses,verbose=False)[2]
+
+    diff = twe[1]-twe[0]
+    inter_houses = []
+    #inter_houses = [halfHouse(two_houses[0])]
+    for i in range(space):
+        i2 = i/float(space)
+        z = twe[0]+np.array(diff*i2)
+        inter_houses.append(halfHouse(np.around(dec.predict(np.array([z]),verbose=False).squeeze())))
     
-    # get prediction output
-    encoded_imgs = enc.predict(big_og_houses)
-    decoded_imgs = np.around(dec.predict(encoded_imgs[2]).squeeze())
+    #inter_houses.append(halfHouse(two_houses[1]))
 
-    #return to half the size again
-    half_dec_houses = np.array([halfHouse(h) for h in decoded_imgs])
-
-    #return output
-    return half_dec_houses
+    return np.array(inter_houses)
 
 
 
@@ -341,41 +341,42 @@ if __name__ == "__main__":
     sml = super_mask_loss(C_WEIGHTS)
     painter = load_model(f"../beta_models/painters/painter-10ep-BEST.h5",custom_objects={'loss': sml})
 
-    vae_enc.summary()
-    vae_dec.summary()
-    painter.summary()
+    # vae_enc.summary()
+    # vae_dec.summary()
+    # painter.summary()
+
+    SETS = 5
+    NUM_HOUSES = 5
+
+    print(f"-- Rendering INTERPOLATED set houses -- ")
 
     #pick some random houses
-    og_houses, house_ids = pickHouses()
+    for s in range(SETS):
 
-    #binary them
-    bin_og_houses = np.array([binHouse(h) for h in og_houses])
+        pair_houses, house_ids = pickHouses(2)
 
-    #regen them through VAE
-    vae_houses = regenVAEHouses(bin_og_houses,vae_enc,vae_dec)
+        print(f"> {house_ids}")
 
-    #paint the regen
-    paint_houses = paintHouses(vae_houses,painter)
+        #binary them
+        bin_pair = np.array([binHouse(h) for h in pair_houses])
 
-    #paint the og binary
-    paint_og_houses = paintHouses(bin_og_houses,painter)
+        #interpolate
+        inter_houses = interpolateHouses(bin_pair,vae_enc,vae_dec,NUM_HOUSES-2)
+        inter_houses = inter_houses.squeeze()
 
-    # print(og_houses.shape)
-    # print(bin_og_houses.shape)
-    # print(vae_houses.shape)
-    # print(paint_houses.shape)
+        #paint the interpolation
+        paint_houses = (paintHouses(inter_houses,painter)).tolist()
 
-    #render the binary and painted houses on the other side
-    print(f"-- Rendering VAE set houses [ ORIGINAL, RECON, PAINTED ]-- ")
-    print(house_ids)
-    render_house_set([reassignBlock(og) for og in og_houses])
-    render_house_set([np.rot90(vh,axes=(2,1)) for vh in vae_houses],[0,4,30])
-    render_house_set([reassignBlock(hq) for hq in paint_houses],[0,4,50])
+        #add originals on the ends
+        paint_houses.insert(0,pair_houses[0])
+        paint_houses.append(pair_houses[1])
+
+        paint_houses = np.array(paint_houses)
+        print(paint_houses.shape)
 
 
-    #paint the binary versions of the houses
-    render_house_set([np.rot90(vh,axes=(2,1)) for vh in bin_og_houses],[0,4,-30])
-    render_house_set([reassignBlock(hbq) for hbq in paint_og_houses], [0,4,-50])
+        #show them
+        render_house_set([reassignBlock(hq) for hq in paint_houses],[0,4,20*s])
 
 
 
