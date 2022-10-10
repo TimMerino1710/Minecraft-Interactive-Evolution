@@ -368,6 +368,15 @@ if __name__ == "__main__":
     #render the binary and painted houses on the other side
     print(f"-- Rendering VAE set houses [ ORIGINAL, RECON, PAINTED ]-- ")
     print(house_ids)
+    
+    #make signs in front of the house sets
+    SIGN = 63
+    MARKER = 57
+    for i in range(len(og_houses)):
+        for h in range(3):
+            r = client.spawnBlocks(Blocks(blocks=[Block(position=Point(x=i*20+5, y=4+h, z=-52), type=blockid_to_type[MARKER], orientation=NORTH)]))
+        # mc.setSign(house_ids[i],f"VAE House {i}",f"Original: {house_ids[i]}",f"Recon: {house_ids[i]}",f"Painted: {house_ids[i]}")
+
     render_house_set([reassignBlock(og) for og in og_houses])
     render_house_set([np.rot90(vh,axes=(2,1)) for vh in vae_houses],[0,4,30])
     render_house_set([reassignBlock(hq) for hq in paint_houses],[0,4,50])

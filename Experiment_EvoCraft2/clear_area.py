@@ -42,5 +42,5 @@ def clean_zone(bounds, offset):
 
 # wipe the slate clean
 bounds = [200, 200, 200]
-offset = [0, 0, 0]
+offset = [-100, 0, -100]
 clean_zone(bounds, offset)
