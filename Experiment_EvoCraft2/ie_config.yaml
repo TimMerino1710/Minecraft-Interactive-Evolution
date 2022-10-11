@@ -1,0 +1,8 @@
+# Generator
+gen_loc : "../beta_models/z-16_d-256/decoder-40.h5"
+gen_type : "VAE"
+gen_z : 16
+
+# Painter
+paint_loc : "../beta_models/painters/painter-10ep-BEST.h5"
+paint_loss : "super"
