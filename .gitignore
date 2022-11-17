@@ -1,2 +1,4 @@
 beta_models.zip
 beta_models/
+browser_IE/node_modules/*
+browser_IE/bower_components/*

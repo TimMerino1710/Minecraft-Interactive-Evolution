@@ -1,0 +1,11 @@
+generator : "models/gan64.h5"      #path for the binary house generator
+painter : "models/painter.h5"    #path for the house painter
+# mods : "rc"                       #modifications to the final output
+mods : "rrrc"
+
+num_samples : 5                  #number of samples to make from the interactive evolution population
+latent_dim : 200                 #dimensionality size for the input latent vector into the model
+
+NODE_RENDER_DIR : '/Users/milk/Desktop/GIL_Lab/VoxWorldJS'   #where to navigate to and call the mass render Node script
+PNG_DIR : 'static/png'
+GIF_DIR : 'static/gif'

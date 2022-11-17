@@ -1,0 +1,19 @@
+/* import custom fonts */
+@font-face {font-family: Minecraft; src: url('misc/Minecraft.ttf');}
+@font-face {font-family: Compact; src: url('misc/compact.ttf');}
+
+body{
+    background-color: #8FCB5D;
+    color: #000;
+    font-family: monospace;
+}
+
+#container{
+    width: 85%;
+    margin:2em auto;
+    text-align: center;
+    /* border:1px solid black; */
+    border-radius: 1em;
+    background-color: #83b956;
+    padding:10px;
+}

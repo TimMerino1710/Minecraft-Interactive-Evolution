@@ -145,7 +145,8 @@ if __name__ == "__main__":
     # imp_houses = np.load('../house_combined_numpy_file/combined.npy',allow_pickle=True)
     
     mini_set = random.choices(range(len(imp_houses)),k=5)
-    #mini_set = [37, 51, 75, 38, 65]
+    # mini_set = [37, 51, 75, 38, 65]
+    # mini_set = [78, 38, 65]
     hset = imp_houses[mini_set]
 
     #clean the houses imported

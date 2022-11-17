@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Minecraft Interactive House Evolver</title>
+        <style>
+            @font-face {font-family: Minecraft; src: url('misc/Minecraft.ttf');}
+            @font-face {font-family: Compact; src: url('misc/compact.ttf');}
+
+            body{
+                background-color: #8FCB5D;
+                color: #000;
+                font-family: monospace;
+            }
+
+            #container{
+                width: 85%;
+                margin:2em auto;
+                text-align: center;
+                /* border:1px solid black; */
+                border-radius: 1em;
+                background-color: #83b956;
+                padding:10px;
+            }
+            /* Quick styles */
+            .houseItem{
+                display: inline-block;
+                min-width: 100px;
+                min-height: 80px;
+                width: 20vw;
+                height: 16vw;
+                max-width: 700px;
+                max-height: 560px;
+                border: 2px solid black;
+                margin: 15px;
+                background-color: #efefef;
+                border-radius: 0.5em;
+            }
+            .houseItem:hover{
+                border-color: #26ff00;
+            }
+
+            #settingsRow{
+                margin: 15px 5% 15px 5%;
+                text-align: center;
+                width:90%;
+                /* border:1px solid blue; */
+                
+            }
+            #settingsRow button{
+                /* margin: 5px 20px 5px 20px; */
+                margin: 10px 5px 10px 5px;
+                padding:5px;
+                width:100px;
+                display: table-row;
+            }
+            form {
+                display: inline-block;
+            }
+
+            .split-menu{
+                /* width:40%; */
+                width:40em;
+                display:table-cell;
+                /* border:1px solid red; */
+            }
+
+            #saveBtn{
+                border-radius: 20px;
+            }
+            #saveBtn.active{
+                background-color: #26ff00;
+            }
+            #evolveBtn{
+                border-radius: 20px;
+            }
+            #evolveBtn.active{
+                background-color: #26ff00;
+            }
+            
+            #houseArr{
+                margin: 15px;
+                text-align: center;
+                display:none;
+            }
+            #houseOut{
+                width:100%;
+                height:100px;
+            }
+
+
+            #load_overlay{
+                position: fixed;
+                top: 5%;
+                left: 5%;
+                width: 50vw;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 100;
+                display: none;
+                color:#fff;
+                font-size:3em;
+                text-align: center;
+                padding: 20%;
+            }
+        </style>
+        <!-- <link rel="stylesheet" href="styles.css"> -->
+
+        <!-- script imports -->
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/three.js')}}"></script>
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/LZWEncoder.js')}}"></script>
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/NeuQuant.js')}}"></script>
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/GIFEncoder.js')}}"></script>
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/b64.js')}}"></script>
+
+    </head>
+    <!-- <body onload="init(null)"> -->
+    <body onload="init_rend();init({{house_json_dat}});">
+        <div id="container">
+            <h1>MINECRAFT House Evolver</h1>
+
+            <div id="houseRow1">
+                <img class="houseItem" id="house0" onclick="clickHouse(0)">
+                <img class="houseItem" id="house1" onclick="clickHouse(1)">
+                <img class="houseItem" id="house2" onclick="clickHouse(2)">
+            </div>
+            <div id="houseRow2">
+                <img class="houseItem" id="house3" onclick="clickHouse(3)">
+                <img class="houseItem" id="house4" onclick="clickHouse(4)">
+            </div>
+            <div id="settingsRow">
+
+                <!-- deals with the new iterative generations -->
+                <div class="split-menu">
+                    <form action="generate" method="POST">
+                        <button id="genBtn">GENERATE</button>
+                    </form>
+                    <form action="reset" method="POST">
+                        <button id="resetBtn" onclick="subForm(this)">RESET</button>
+                    </form>
+                </div>
+                
+                <!-- changes the mode for interaction -->
+                <div class="split-menu">
+                    <button onclick="setMode('save')" id="saveBtn">SAVE</button>
+                    <button onclick="setMode('evolve')" id="evolveBtn" class="active">EVOLVE</button>
+                </div>
+                
+            </div>
+            <!-- output the 3d int array of the house here -->
+            <div id="houseArr">
+                <textarea id="houseOut" onclick="copyArr()"></textarea>
+            </div>
+            <div><p id="debug"></p></div>
+            
+        </div>
+        <div id="load_overlay">GENERATING!<br>Please wait...</div>
+        <script type="text/javascript" src="{{url_for('static', filename='voxworldjs/struct2data.js')}}"></script>
+        <script src="{{url_for('static', filename='code.js')}}"></script>
+    </body>
+</html>

@@ -1,0 +1,2 @@
+[ ] Make the model generation process into an API that the web app can call
+[ ] Make a full pipeline of binary generation, painting, export to txt, render png and gif, save
