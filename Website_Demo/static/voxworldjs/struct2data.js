@@ -20,19 +20,26 @@ var CONFIG = {
 
 }
 
-let TEXTURE_PNG = [];
-let TEXT_MAT = [];
+let RAW_TEXT_DAT = {};
+let TEXTURE_PNG = {};
+let TEXT_MAT = {};
 
 
 
 //////////////      THREE.JS SETUP     ///////////////
 
 //set up the canvas
-const rendCanvas = document.createElement('canvas');
-rendCanvas.id = "rendCanvas";
-rendCanvas.width = CONFIG.CANV_WIDTH;
-rendCanvas.height = CONFIG.CANV_HEIGHT;
-document.getElementById("container").appendChild(rendCanvas);
+var rendCanvas = null;
+if (typeof(document) !== "undefined"){
+    rendCanvas = (document.createElement('canvas'));
+    rendCanvas.id = "rendCanvas";
+    rendCanvas.width = CONFIG.CANV_WIDTH;
+    rendCanvas.height = CONFIG.CANV_HEIGHT;
+    document.getElementById("container").appendChild(rendCanvas);
+}else{
+    rendCanvas = new OffscreenCanvas(CONFIG.CANV_WIDTH,CONFIG.CANV_HEIGHT);
+    rendCanvas.style = {width: CONFIG.CANV_WIDTH, height: CONFIG.CANV_HEIGHT};
+}
 
 //set up the renderer
 const RENDERER = new THREE.WebGLRenderer({canvas: rendCanvas, antialias: false, preserveDrawingBuffer: true});
@@ -43,7 +50,13 @@ RENDERER.setSize(400, 300);
 //setup scene and camera
 const SCENE = new THREE.Scene();
 SCENE.background = new THREE.Color( CONFIG.BG_COLOR ).convertSRGBToLinear();
-const CAMERA = new THREE.PerspectiveCamera( 75, rendCanvas.clientWidth / rendCanvas.clientHeight, 0.1, 1000);
+var CAMERA = null;
+if(typeof(document) !== "undefined"){
+    CAMERA = new THREE.PerspectiveCamera( 75, rendCanvas.clientWidth / rendCanvas.clientHeight, 0.1, 1000);
+}else{
+    CAMERA = new THREE.PerspectiveCamera( 75, 400 / 300, 0.1, 1000);
+}
+
 
 //load a texture loader
 var loader = new THREE.TextureLoader(  );
@@ -88,6 +101,10 @@ function importAllTextures(){
 //only import the textures in the CUR_TEXTURE_LIST
 function importSubTextures(){
     for(let t=0;t<CONFIG.CUR_TEXTURE_LIST.length;t++){
+        //skip air (not rendered)
+        if(CONFIG.CUR_TEXTURE_LIST[t] == "air")
+            continue;
+
         let image = new Image();
         // image.src = "./textures/"+ALL_TEXTURES[t]+".png";
         image.src = "static/voxworldjs/textures/"+CONFIG.CUR_TEXTURE_LIST[t]+".png"
@@ -99,6 +116,7 @@ function importSubTextures(){
     }
 }
 
+//import the textures by rendering their images onto a fake canvas and saving as a material
 function loadTextureIMG(image,id){
     //fake mini canvas for the imported images
     const img_canvas = document.createElement("canvas")
@@ -111,8 +129,30 @@ function loadTextureIMG(image,id){
     itx.drawImage(image, 0, 0, img_canvas.width, img_canvas.height);
 
     //add to the scene
+    RAW_TEXT_DAT[id] = Array.from(itx.getImageData(0, 0, image.width, image.height).data);
     TEXTURE_PNG[id] = new THREE.CanvasTexture(img_canvas);
     TEXT_MAT[id] = new THREE.MeshBasicMaterial({map: TEXTURE_PNG[id],transparent: true});
+}
+
+//i hate this function
+function getTextureData(){
+    return {"names":CONFIG.CUR_TEXTURE_LIST,"data":RAW_TEXT_DAT};
+}
+
+//i hate this function even more
+function reimportTextures(raw_imgs){
+    //assume you only call this for the webworker
+    let keys = Object.keys(raw_imgs.data);
+    for(let i=0;i<keys.length;i++){
+        //make a new image data object from the array passed from the data file
+        let imdat = new ImageData(16,16);
+        imdat.data.set(raw_imgs.data[keys[i]]);
+
+        //create a new texture
+        TEXTURE_PNG[keys[i]] = new THREE.Texture(imdat);
+        TEXTURE_PNG[keys[i]].needsUpdate = true; ///CRUCIAL! OR WILL NOT SHOW UP
+        TEXT_MAT[keys[i]] = new THREE.MeshBasicMaterial({map: TEXTURE_PNG[keys[i]],transparent: true});
+    }
 }
 
 //remove all structures from the scene
@@ -159,7 +199,7 @@ function make3dStructure(arr3d,offset=[0,0,0]){
 
     //move camera to the center of the structure
     if(CONFIG.use_struct_center)
-        CONFIG.CENTER_Y = Math.max(2,structCen[1])+1;
+        CONFIG.CENTER_Y = Math.max(2,structCen[1]);
 
     //move the camera into position
     console.log(`> Camera position set to: angle=${CONFIG.ANGLE}, zoom=${CONFIG.RADIUS}, height=${CONFIG.CENTER_Y}`);
@@ -205,14 +245,29 @@ function renderPNGdat(arr3d){
 }
 
 //return the data of the GIF rendered image
-function renderGIFdat(arr3d){
+function renderGIFdat(arr3d,text_dat=null,cam=null){
+    if(cam != null){
+        CONFIG.ANGLE = cam.angle;
+        CONFIG.RADIUS = cam.radius;
+        CONFIG.CENTER_Y = cam.height;
+    }
+    //fix the textures
+    if(text_dat != null){
+        reimportTextures(text_dat);
+    }
+
     //pass in the structure
     make3dStructure(arr3d);
 
     //make a fake canvas to copy from the renderer
-    let fake_canvas = document.createElement("canvas");
-    fake_canvas.width = RENDERER.domElement.width;
-    fake_canvas.height = RENDERER.domElement.height;
+    let fake_canvas = null;
+    if(typeof(document) !== "undefined"){
+        fake_canvas = document.createElement("canvas");
+        fake_canvas.width = RENDERER.domElement.width;
+        fake_canvas.height = RENDERER.domElement.height;
+    }else{
+        fake_canvas = new OffscreenCanvas(CONFIG.CANV_WIDTH, CONFIG.CANV_HEIGHT);
+    }
     let fake_ctx = fake_canvas.getContext("2d",{willReadFrequently: true});
 
 
@@ -224,7 +279,7 @@ function renderGIFdat(arr3d){
     encoder.start();
 
     //repeat for a full rotation
-    FRAMES = 36;
+    let FRAMES = 36;
     for(let i=0;i<FRAMES;i++){
         //rotate, render, and copy
         let newAngle = CONFIG.ANGLE + (360/FRAMES)*i;

@@ -38,6 +38,10 @@
             .houseItem:hover{
                 border-color: #26ff00;
             }
+            .selectHouse{
+                border-color: #b86500;
+            }
+
 
             #settingsRow{
                 margin: 15px 5% 15px 5%;
@@ -131,10 +135,11 @@
                 <!-- deals with the new iterative generations -->
                 <div class="split-menu">
                     <form action="generate" method="POST">
-                        <button id="genBtn">GENERATE</button>
+                        <input type="hidden" name="z_set" id='z_set'>
+                        <button id="genBtn" onclick="subForm(this);">GENERATE</button>
                     </form>
                     <form action="reset" method="POST">
-                        <button id="resetBtn" onclick="subForm(this)">RESET</button>
+                        <button id="resetBtn" onclick="subForm(this);">RESET</button>
                     </form>
                 </div>
                 

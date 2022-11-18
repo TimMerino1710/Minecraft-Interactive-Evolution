@@ -7,6 +7,7 @@ var HOUSE_PNGS = [];
 var HOUSE_GIFS = [];
 var HOUSE_ARR = [];
 var HOUSE_Z = {};
+var SELECTED_HOUSES = [];
 
 var def_img = "static/tmp/spin_block.gif"
 
@@ -41,6 +42,7 @@ function init(json_dat){
     }else{
         console.log("got no data");
         //if no data is recieved, notify the user to hit the generate or reset button
+        document.getElementById("genBtn").disabled = true;
         setInterval(flashBtn, 700);
 
         //change the generate button to another version of the reset button (same functionality)
@@ -74,25 +76,43 @@ function loadHouses(){
         houseItems[i].src = HOUSE_PNGS[i];
         houseItems[i].onerror = function(){houseItems[i].src = def_img};
         unpreviewHouse(i);
+
+        houseItems[i].onmouseenter = function(){previewHouse(i)};
+        houseItems[i].onmouseleave = function(){unpreviewHouse(i)};
     }
 
+    //make the GIFs linearly
+    // document.getElementById("debug").innerHTML = "Rendering gifs...";
+    // for(let i = 0; i < HOUSE_ARR.length; i++){
+    //     HOUSE_GIFS.push(renderGIFdatTime(HOUSE_ARR[i]));
+    // }
+    // document.getElementById("debug").innerHTML = "";
+
+    //launch web workers to make the gifs
+    document.getElementById("debug").innerHTML = "Rendering gifs...";
+    for(let i = 0; i < HOUSE_ARR.length; i++){
+        let worker = new Worker("static/workGif.js");
+        worker.postMessage({"houses":JSON.stringify(HOUSE_ARR[i]),"textures":JSON.stringify(getTextureData())});
+        worker.onmessage = function(e){
+            HOUSE_GIFS[i] = e.data;
+            if(HOUSE_GIFS.length == HOUSE_ARR.length){
+                document.getElementById("debug").innerHTML = "Rendering complete!";
+            }
+        }
+    }
+
+
     //create the GIFs (later)
-    setTimeout(function(){
-        document.getElementById("debug").innerHTML = "Rendering gifs..."
+    // setTimeout(function(){
+        
 
-        //make the GIFs
-        for(let i = 0; i < HOUSE_ARR.length; i++){
-            HOUSE_GIFS.push(renderGIFdat(HOUSE_ARR[i]));
-        }
+    //     //make the GIFs
+    //     for(let i = 0; i < HOUSE_ARR.length; i++){
+    //         // HOUSE_GIFS.push(renderGIFdat(HOUSE_ARR[i]));
+    //     }
 
-        //add event listeners to the house items
-        for(let i = 0; i < houseItems.length; i++){
-            houseItems[i].onmouseenter = function(){previewHouse(i)};
-            houseItems[i].onmouseleave = function(){unpreviewHouse(i)};
-        }
-
-        document.getElementById("debug").innerHTML = ""
-    },1);
+    //     document.getElementById("debug").innerHTML = ""
+    // },1);
 
     
 }
@@ -103,7 +123,7 @@ function makeHouseConfig(){
     // texture_set = ['air','stone','dirt','planks_oak','lapis_block','sand','leaves','glass','red_flower','stone_slab_side','wool_colored_red','iron_fence']
 
     CONFIG.ANGLE = 230
-    CONFIG.RADIUS = 17
+    CONFIG.RADIUS = 18
     CONFIG.use_struct_center = true;
 }
 
@@ -120,7 +140,14 @@ function unpreviewHouse(houseIndex){
 //activated when a house is clicked on
 function clickHouse(houseIndex){
     if (CUR_MODE == "evolve"){
-        // Evolve the house
+        // Add the house to the selected list
+        if(SELECTED_HOUSES.includes(houseIndex)){
+            SELECTED_HOUSES.splice(SELECTED_HOUSES.indexOf(houseIndex), 1);
+            document.getElementById("house"+houseIndex).classList.remove("selectHouse");
+        }else{
+            SELECTED_HOUSES.push(houseIndex);
+            document.getElementById("house"+houseIndex).classList.add("selectHouse");
+        }
     }else if(CUR_MODE == "save"){
         // Save the house and output its 3d array
         document.getElementById("houseArr").style.display = "block";
@@ -152,15 +179,28 @@ function flashBtn(){
     else
         FLASH_COLOR = "#dedede";
 
-    document.getElementById("genBtn").style.backgroundColor = FLASH_COLOR;
+    // document.getElementById("genBtn").style.backgroundColor = FLASH_COLOR;
     document.getElementById("resetBtn").style.backgroundColor = FLASH_COLOR;
 
 }
 
 //submit a button's form
 function subForm(b){
+    if(b.id == "genBtn"){
+        document.getElementById("z_set").value = JSON.stringify(getSelectHouses())
+    }
+
     document.getElementById("load_overlay").style.display = "block";
     b.parentElement.submit();
+}
+
+//return the Z vectors of the selected houses
+function getSelectHouses(){
+    let z_out = {};
+    for(let i=0;i<SELECTED_HOUSES.length;i++){
+        z_out[i] = HOUSE_Z[SELECTED_HOUSES[i]][0];
+    }
+    return z_out;
 }
 
 //copy the house array to the clipboard

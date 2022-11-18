@@ -168,6 +168,11 @@ def paintHouses(houses):
 def centerHouse(house,dim=[16,16,16]):
     #find the bounds of the house
     x,y,z = np.where(house!=0)
+
+    #nothing there?
+    if len(x) == 0 or len(y) == 0 or len(z) == 0:
+        return house
+
     xb = [min(x),max(x)]
     yb = [min(y),max(y)]
     zb = [min(z),max(z)]
@@ -251,19 +256,23 @@ def genHouses(Z):
 # same algorithm used in "Deep Interactive Evolution" paper: https://arxiv.org/abs/1801.08230
 def mutatePop(bestZ,n=5):
     new_pop = []
+    bzs = bestZ.squeeze()
 
     #add the original back
-    new_pop.append(bestZ)
+    new_pop.append(bzs)
 
     #mutate the latent vector
     for i in range(n-2):
-        newZ = bestZ + np.random.normal(0, 1, bestZ.shape)
+        newZ = bzs + np.random.normal(0, 1, bzs.shape)
         new_pop.append(newZ)
 
-    #add a random latent vector
-    new_pop.append(np.random.normal(0, 1, bestZ.shape))
+    #add a random latent vector + reshape
+    new_pop.append(np.random.normal(0, 1, bzs.shape))
+    new_pop = np.array(new_pop)
+    np.random.shuffle(new_pop)
+    new_pop = np.expand_dims(new_pop,axis=1)
 
-    return new_pop
+    return np.array(new_pop)
     
 
 # make a new population from the best selected z latent vectors using crossover and mutation
@@ -272,22 +281,34 @@ def multiMutatePop(bestZs,n=5):
     new_pop = []
 
     #add one of the originals back
-    new_pop.append(random.choice(bestZs))
+    new_pop.append(random.choice(bestZs).squeeze())
 
     #crossover the latent vectors
     for i in range(n-2):
-        parents = np.random.choice(bestZs, 2, replace=False)
+        #pick 2 parents
+        if len(bestZs) == 2:
+            parents = bestZs.squeeze()
+        else:
+            parents = bestZs[np.random.choice(list(range(len(bestZs))), 2, replace=False)].squeeze()
+        
+        #select a random point from each parent
         newZ = []
         for i in range(len(parents[0])):
-            newZ.append(random.choice(parents)[i])
+            zi = random.choice(parents)[i]
+            newZ.append(zi)
         new_pop.append(newZ)
     
     #mutate the latent vectors
     for z in new_pop[1:]:
-        z = z + np.random.normal(0, 1, len(z))
+        z = np.array(z) + np.random.normal(0, 1, len(z))
     
     #add a random latent vector
     new_pop.append(np.random.normal(0, 1, len(new_pop[0])))
+
+    #shuffle the population + add a dimension back
+    new_pop = np.array(new_pop)
+    np.random.shuffle(new_pop)
+    new_pop = np.expand_dims(new_pop,axis=1)
 
     return new_pop
     
@@ -322,7 +343,19 @@ def multiNextEvo(best_zs):
 
 if __name__ == '__main__':
     #inital evolution step
+    print("initial")
     zpop, houses = startEvo()
-    print("got some stuff!")
 
+    #evolve one vector
+    print("evolve 1 vector")
+    print(zpop[0].shape)
+    zpop, houses = nextEvo(zpop[0])
+
+    #evolve random parents
+    print("evolve 3 vectors")
+    zpop = np.array(zpop)
+    si = np.random.choice(list(range(len(zpop))),3,replace=False)
+    selected = zpop[si]
+    print(selected.shape)
+    zpop2, houses2 = multiNextEvo(selected)
 
