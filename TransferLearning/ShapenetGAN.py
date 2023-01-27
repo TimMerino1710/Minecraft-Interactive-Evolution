@@ -53,12 +53,12 @@ class ShapenetWGANGP():
         self.img_z = 64
         self.channels = 1
         self.img_shape = (self.img_x, self.img_y, self.img_z, self.channels)
-        self.latent_dim = 200
+        self.latent_dim = 100
 
         # Storing resutls of this model
-        self.model_name = 'shapenetGAN1_tabletest'
-        self.sample_path = "GAN_generated_samples_Shapenet/" + self.model_name + "/"
-        self.model_path = "GAN_models_Shapenet/" + self.model_name + "/"
+        self.model_name = 'minecraftGAN_16_curatedCA_nostretch_latent100'
+        self.sample_path = "H:\\Transfer_Learned_Samples/" + self.model_name + "/"
+        self.model_path = "H:\\Transfer_Learned_Models/" + self.model_name + "/"
         self.visualizer = binary_visualizer(64, 3, 3)
         disable_eager_execution()
 
@@ -72,7 +72,8 @@ class ShapenetWGANGP():
         # Following parameter and optimizer set as recommended in WGAN-GP paper
         # shapenet paper uses G lr .0025 and D lr 10e-5, back size 100 and Adam with beta=.5
         self.n_critic = 5
-        optimizer = RMSprop(lr=0.00005)
+        optimizer = RMSprop(lr=0.00008)
+        # optimizer = RMSprop(lr=0.0001)
 
         # Build the generator and critic
         self.generator = self.build_generator()
@@ -121,6 +122,7 @@ class ShapenetWGANGP():
         #         for Generator
         #-------------------------------
 
+
         # For the generator we freeze the critic's layers
         self.critic.trainable = False
         self.generator.trainable = True
@@ -162,7 +164,7 @@ class ShapenetWGANGP():
 
     def build_generator(self):
 
-        model = Sequential()
+        model = Sequential(name="generator")
         # From paper:
         # "The generator consists of five volumetric fully convolutional layers of kernel sizes 4x4x4 and strides 2, with batch normalization and ReLu layers in between and a sigmoid layer at the end"
         # Note: Batch normalization is ok in the generator, but we will diverge from the papers architecture and not use batch normalization in the critic, as recommended in the WGAN-GP paper https://proceedings.neurips.cc/paper/2017/file/892c3b1c6dccd52936e27cbd0ff683d6-Paper.pdf
@@ -197,7 +199,7 @@ class ShapenetWGANGP():
 
     def build_critic(self):
 
-        model = Sequential()
+        model = Sequential(name="critic")
 
         # From paper:
         # "The discriminator basically mirrors the generator, except that is uses LeakyReLU instead of ReLU layers. There are no pooling or linera layers in our network
@@ -209,7 +211,7 @@ class ShapenetWGANGP():
         model.add(Conv3D(128, kernel_size=4, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         # downsampled to 128x16x16x16
-        model.add(Conv3D(256, kernel_size=4, strides=1, padding="same"))
+        model.add(Conv3D(256, kernel_size=4, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         # downsampled to 256x8x8x8
         model.add(Conv3D(512, kernel_size=4, strides=2, padding="same"))
@@ -229,21 +231,46 @@ class ShapenetWGANGP():
         # modelnet:
         # data = np.load('modelnet_64_scaled.npy')
 
-        # shapenet:
-        data = np.load('shapenet_table_combined.npy')
-        X = data.reshape([-1, 64, 64, 64, 1])
+        #minecraft:
+        X = np.load('H:\\joined_curatedCA.npy')
+        X = X.reshape([-1, 64, 64, 64, 1])
+
+        # # shapenet:
+        # data = np.load('shapenet_table_combined.npy')
+        # X = data.reshape([-1, 64, 64, 64, 1])
         return X
 
-    def train(self, epochs, batch_size, sample_interval=50):
+    def load_craftassist(self):
+        X = np.load('H:\\craftassist_stretched_xy.npy')
+        X = X.reshape([-1, 64, 64, 64, 1])
+        return X
+
+    def load_ingame(self):
+        X = np.load('H:\\ingame_stretched_xy.npy')
+        X = X.reshape([-1, 64, 64, 64, 1])
+        return X
+
+    def train(self, epochs, batch_size, sample_interval=50, switch_epoch=None):
 
         # Load the dataset
-        X_train = self.load_data()
-        self.sample_reals(X_train[:9])
+        # if we are doing fine tuning, load craftassist first
+        if switch_epoch:
+            print("Training on craftassist: ")
+            X_train = self.load_craftassist()
+        else:
+            X_train = self.load_data()
+        # self.sample_reals(X_train[:9])
 
         valid = -np.ones((batch_size, 1))
         fake = np.ones((batch_size, 1))
         dummy = np.zeros((batch_size, 1)) # Dummy gt for gradient penalty
         for epoch in range(epochs):
+            # if we are doing fine tuning, switch to ingame data at given switch epoch
+            if switch_epoch:
+                if epoch == switch_epoch:
+                    print("Training on ingame: ")
+                    X_train = self.load_ingame()
+
 
             for _ in range(self.n_critic):
 
@@ -272,10 +299,9 @@ class ShapenetWGANGP():
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0 or epoch == epochs - 1:
                 self.sample_images(epoch)
-                self.generator.save(self.model_path + "/generator_" + str(epoch))
-                self.critic.save(self.model_path + "/critic_" + str(epoch))
-                self.generator_model.save(self.model_path + "/GAN_" + str(epoch))
-                config = self.generator_model.get_config()
+                self.generator.save(self.model_path + "/generator_" + str(epoch), save_traces=True)
+                self.critic.save(self.model_path + "/critic_" + str(epoch), save_traces=True)
+                self.generator_model.save(self.model_path + "/GAN_" + str(epoch), save_traces=True)
 
 
         self.generator.save(self.model_path + "/generator_final.h5")
@@ -311,4 +337,4 @@ class ShapenetWGANGP():
 
 if __name__ == '__main__':
     wgan = ShapenetWGANGP()
-    wgan.train(epochs=100, batch_size=32, sample_interval=199)
+    wgan.train(epochs=5000, batch_size=48, sample_interval=399)
