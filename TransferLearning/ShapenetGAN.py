@@ -28,6 +28,7 @@ from visualizer import binary_visualizer
 
 
 
+
 # from https://github.com/eriklindernoren/Keras-GAN/blob/master/wgan_gp/wgan_gp.py
 
 import keras.backend as K
@@ -53,10 +54,10 @@ class ShapenetWGANGP():
         self.img_z = 64
         self.channels = 1
         self.img_shape = (self.img_x, self.img_y, self.img_z, self.channels)
-        self.latent_dim = 100
+        self.latent_dim = 200
 
         # Storing resutls of this model
-        self.model_name = 'minecraftGAN_16_curatedCA_nostretch_latent100'
+        self.model_name = 'minecraftGAN_19_curatedCA_extralayer_finetune'
         self.sample_path = "H:\\Transfer_Learned_Samples/" + self.model_name + "/"
         self.model_path = "H:\\Transfer_Learned_Models/" + self.model_name + "/"
         self.visualizer = binary_visualizer(64, 3, 3)
@@ -184,6 +185,11 @@ class ShapenetWGANGP():
         model.add(BatchNormalization(momentum=0.8))
         model.add(Activation("relu"))
         model.add(UpSampling3D())
+        # extra
+        model.add(Conv3D(64, kernel_size=4, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        #
         model.add(Conv3D(self.channels, kernel_size=4, padding="same"))
         model.add(Activation("sigmoid"))
 
@@ -203,10 +209,12 @@ class ShapenetWGANGP():
 
         # From paper:
         # "The discriminator basically mirrors the generator, except that is uses LeakyReLU instead of ReLU layers. There are no pooling or linera layers in our network
-
         model.add(Conv3D(64, kernel_size=4, strides=2, input_shape=self.img_shape, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
-
+        #extra
+        model.add(Conv3D(64, kernel_size=4, strides=1, input_shape=self.img_shape, padding="same"))
+        model.add(LeakyReLU(alpha=0.2))
+        #end extra
         # downsampled to 64x32x32x32
         model.add(Conv3D(128, kernel_size=4, strides=2, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
@@ -337,4 +345,4 @@ class ShapenetWGANGP():
 
 if __name__ == '__main__':
     wgan = ShapenetWGANGP()
-    wgan.train(epochs=5000, batch_size=48, sample_interval=399)
+    wgan.train(epochs=5000, batch_size=32, sample_interval=399, switch_epoch=4000)

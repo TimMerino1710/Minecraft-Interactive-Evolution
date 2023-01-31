@@ -6,9 +6,10 @@ from nbtschematic import SchematicFile
 from pprint import pprint
 import json
 import tensorflow as tf
+import cc3d
 
 HOUSE_NUMPY_DIR = '../house_numpy_files'
-HOUSE_OUT_DIR = '../house_combined_numpy_file'
+HOUSE_OUT_DIR = 'H:/'
 SANITY_CHECK_DIR = 'sanity_checks'
 COMBINED_FILE = '../house_combined_numpy_file/combined.npy'
 blockid_dict = {
@@ -590,31 +591,6 @@ def rotation_augmentation(data):
         rotated_data.append(rotated_270)
     return rotated_data
 
-#TODO:
-# reflect each sample around the X and/or Y axis
-def reflection_augmentation(data):
-    flipped_data = []
-    for array in data:
-        copy = np.copy(array)
-        flipped_X = np.flip(copy, 2)
-        flipped_data.append(copy)
-        flipped_data.append(flipped_X)
-    return flipped_data
-
-#TODO:
-# the trickiest augmentation, translate our samples in the X and y dimensions as much as possible
-# this will require computing how much we can translate (how much empty space we have on each side, or the buffer)
-# decisions about "buffer": do we take the minimum buffer and use that to limit our translation? or do we translate each sample as much as possible within its buffer (will underrepresent larger builds, overrepresent smaller)?
-# alternatively, we can increase our maximum size by padding with empty space, that way everything gets equal translations. Will increase dimensionality
-# what step size do we take? 1 block? 3? 5?
-def translation_augmentation(data):
-    pass
-
-#TODO:
-# center data. This will take every array, find its corners(?) find a midpoint, and center that in the 3d array if possible
-# will require an algorithm for finding those corners, calculating a midpoint, compensating for outliers, compensating for any possible overflow issues
-def center_data():
-    pass
 
 # returns the unique block IDs in the combined file, and the counts corresponding to each block
 def get_unique_blocks_counts(file):
@@ -649,12 +625,25 @@ def compressed_to_categorical(data_list):
     print(len(uniques))
     uniques = np.sort(uniques)
     # map to 0-14, rather than random ids
-    print(np.unique(data_list[0]))
+    # print(np.unique(data_list[0]))
     for array in data_list:
         for i, val in enumerate(uniques):
             array[array == val] = i
-    print(np.unique(data_list[0]))
+    # print(np.unique(data_list[0]))
     return data_list
+
+
+# performs compression but only deletes the air blocks
+def compress_data_air_only(data_list):
+    # data_np_array = np.asarray(data_list)
+
+    #compress
+    for array in data_list:
+        air_list = compression_list[0]
+        array[np.isin(array, air_list)] = air_list[0]
+
+    return data_list
+
 
 def round_generated_npy(dir):
     print("rounding")
@@ -668,34 +657,271 @@ def round_generated_npy(dir):
                 data[np.where(data < .8)] = 0
                 np.save(dir + '/rounded/rounded_' + file, data)
 
+def cropHouse(h):
+    # argwhere will give you the coordinates of every non-zero point
+    true_points = np.argwhere(h)
+    # take the smallest points and use them as the top left of your crop
+    # print(h.shape)
+    top_left = true_points.min(axis=0)
+    # take the largest points and use them as the bottom right of your crop
+    bottom_right = true_points.max(axis=0)
+    out = h[top_left[0]:bottom_right[0] + 1,  # plus 1 because slice isn't
+          top_left[1]:bottom_right[1] + 1, top_left[2]:bottom_right[2] + 1]  # inclusive
+
+    return out
+
+def transpose_houses(house, out_shape=(16, 16, 16)):
+    transposes_houses = []
+
+    cropped_house = cropHouse(house)
+    # print("cropped house shape: ", s2.shape)
+    cropped_shape = cropped_house.shape
+
+    # transpose along x axis, skipping by 2
+    for x in range(0, out_shape[0] - cropped_shape[0] + 1):
+        # transpose along y axis, skipping by 2
+        for y in range(0, out_shape[1] - cropped_shape[1]):
+            # create empty array of desired output shape
+            transposed_house = np.zeros(shape=out_shape)
+
+            # copy the cropped house to this chunk of the array
+            transposed_house[x:x + cropped_shape[0], y:y + cropped_shape[1], 0:cropped_shape[2]] = cropped_house.copy()
+            transposes_houses.append(transposed_house)
+    # print("len of hts: ", len(hts))
+    return transposes_houses
 
 
-# in game preprocessing
-file = '../ingame house schematics\old format schematic files\combined.npy'
-# TODO: lots of negative values, why?
-uniq, cnt = get_unique_blocks_counts(file)
-print(uniq)
-print(cnt)
+def transpose_and_stretch_house(house, out_shape=(16, 16, 16)):
+    transposes_and_stretched_houses = []
 
-print_counts_blocknames(uniq, cnt)
+    # for house in data:
+    cropped_house = cropHouse(house)
+    cropped_shape = cropped_house.shape
 
+    # get transpositions of normal house
+    transposes_and_stretched_houses += transpose_houses(house, out_shape)
+
+    # if we can fit after stretching in any direction, get the stretched house and all possible transpositions of it
+    if cropped_shape[0] * 2 <= out_shape[0]:
+        stretched_x_house = cropped_house.repeat(2, axis=0)
+        stretched_x_houses = transpose_houses(stretched_x_house, out_shape)
+        print("number of stretched x houses", len(stretched_x_houses))
+        transposes_and_stretched_houses += stretched_x_houses
+    if cropped_shape[1] * 2 <= out_shape[1]:
+        stretched_y_house = cropped_house.repeat(2, axis=1)
+        stretched_y_houses = transpose_houses(stretched_y_house, out_shape)
+        print("number of stretched y houses", len(stretched_y_houses))
+        transposes_and_stretched_houses += stretched_y_houses
+    if cropped_shape[2] * 2 <= out_shape[2]:
+        stretched_z_house = cropped_house.repeat(2, axis=2)
+        stretched_z_houses = transpose_houses(stretched_z_house, out_shape)
+        print("number of stretched z houses", len(stretched_z_houses))
+        transposes_and_stretched_houses += stretched_z_houses
+
+
+
+    print("number of stretched transposed houses: ", len(transposes_and_stretched_houses))
+    return transposes_and_stretched_houses
+
+
+def augment(combined):
+    HOUSE_DATASET = []
+
+    TRANS_HOUSES = []
+
+    for h in combined:
+        # houses look rotated... just rotate them back
+        h = np.rot90(h, axes=(0, 2))
+
+        # remove bottom layer (got the ground as well) - i can't believe i got it right on the first try...
+        h = h[3:, 3:, 1:-2]
+        HOUSE_DATASET.append(h)
+
+        tds = transpose_and_stretch_house(h, (16, 16, 16))
+
+        # rotated
+        for haus in tds:
+            TRANS_HOUSES.append(haus)
+
+
+
+    TRANS_HOUSES = np.array(TRANS_HOUSES)
+
+    print("\n \n Length of full augmented houses: ", len(TRANS_HOUSES), "\n \n")
+    return TRANS_HOUSES
+
+
+def zscore(dat,thresh=3):
+    mean = np.mean(dat,axis=0)
+    std =np.std(dat,axis=0)
+    # print(std)
+
+    outliers = []
+    for x in dat:
+        z_score = (x - mean)/std
+        zs_abs = np.abs(np.linalg.norm(z_score))
+        if zs_abs > thresh:
+            outliers.append(x)
+    return outliers
+
+
+def remove_outliers(data):
+    house_xyz = []
+    for h in data:
+        xyz = np.argwhere(h).squeeze()
+        house_xyz.append(xyz)
+
+    removed_outliers_data = []
+    # print(np.unique(data[1]))
+    for i, house in enumerate(house_xyz):
+        # print(i)
+        # if i not in [22, 872, 1760, 2164, 178]:
+        outliers = zscore(house, 3)
+        new_house = data[i]
+        for o in outliers:
+            new_house[o[0], o[1], o[2]] = 0
+
+        removed_outliers_data.append(new_house)
+        # else:
+        #     print(np.unique(house))
+    return removed_outliers_data
+
+
+# removes all but the largest connected component from the data
+def get_largest_connected_component(data):
+    cc_houses = []
+
+    for house in data:
+        # create a copy of the house that is binarized, to simplify connected component labeling
+        binarized = np.copy(house)
+        binarized[binarized != 0] = 1
+
+        # get the largest connected component in the binarized verison
+        largest_cc = cc3d.largest_k(binarized, k=1, connectivity=26)
+
+        # use the binarized connected component as a mask to get the largest connected component of the original data
+        cc_masked_house = house * largest_cc
+
+        cc_houses.append(cc_masked_house)
+
+    return cc_houses
+
+
+
+
+
+
+bads = [44, 50, 72, 74, 79, 81, 98, 110, 115, 117, 154, 157, 175, 177, 190, 192, 194, 200, 202, 207, 218, 228, 232, 237, 238, 250, 268, 284, 303, 304, 305, 320, 322, 334, 335, 340, 344, 357, 372, 391, 406, 422, 450, 478, 486, 491, 522, 539, 552, 553, 564, 568, 570, 574, 590, 594, 597, 605, 607, 609, 613, 616, 618, 625, 635, 650, 655, 656, 659, 660, 677, 683, 696, 705, 733, 739, 741, 743, 744, 751, 766, 783, 798, 809, 840, 841, 850, 854, 881, 883, 891, 902, 906, 908, 909, 913, 919, 921, 924, 929, 937, 940, 942, 951, 958, 979, 985, 995, 999, 1003, 1006, 1017, 1019, 1026]
+maybes = [19, 20, 21, 38, 42, 49, 51, 61, 65, 67, 86, 95, 116, 119, 126, 136, 140, 150, 159, 171, 178, 186, 188, 204, 209, 236, 249, 266, 272, 277, 280, 282, 289, 302, 339, 352, 354, 358, 359, 361, 362, 363, 367, 376, 378, 379, 393, 400, 408, 412, 427, 437, 451, 468, 477, 480, 481, 490, 499, 508, 541, 544, 549, 550, 556, 560, 565, 567, 586, 603, 604, 611, 644, 651, 653, 657, 658, 662, 663, 679, 684, 684, 686, 691, 701, 707, 708, 718, 725, 732, 740, 761,  771, 793, 824, 845, 847, 857, 863, 866, 876, 878, 886, 915, 925, 930, 945, 949, 956, 966, 970, 972, 975, 978, 984, 988, 993, 998, 1004, 1010, 1011, 1030, 1033, 1034, 1035, 1038]
 # #  ========  preprocess ============
-# data = load_data()
+# Load all of the craftassist npy files
+data = load_data()
+
+# # create a dataframe with the dimensions of each building
 # dim_df = get_build_dim_df(data)
+#
+# # filter down to only those less than or equal to 16x16x16
+# # This results in only 737 builds
 # filtered_data = cut_to_dim(dim_df, data, 16, 16, 16)
-# # print(len(filtered_data))
-# padded_filtered_data = pad_arrays(filtered_data, 16, 16, 16)
+# print(len(filtered_data))
+
+# # compress data
+# compressed = compress_data(data)
+
+# we want a version that doesn't use old compression, but we can trust the air compression
+# if we don't do at least the air compression, we end up with a different number of houses returned from remove outliers
+compressed = compress_data_air_only(data)
+#
+# # get the largest connected component of each house
+# connected_compressed = get_largest_connected_component(compressed)
+#
+# # get the cropped version of each house
+# cropped_houses = []
+# for house in connected_compressed:
+#     print(house.shape)
+#     cropped_houses.append(cropHouse(house))
+#
+# # filter down to houses that fit in 16x16x16 (and bigger than 5x5x5) after removing outliers
+# filtered_houses = []
+# for house in cropped_houses:
+#     house_shape = house.shape
+#     if house_shape[0] <= 16 and house_shape[1] <= 16 and house_shape[2] <= 16 and (house_shape[0] > 4 and house_shape[1] > 4 and house_shape[2] > 4):
+#         filtered_houses.append(house)
+#
+# # pad all houses to be 16x16x16
+# padded = pad_arrays(filtered_houses, 16, 16, 16)
+#
+# compressed_np = np.asarray(padded)
+# u, c = np.unique(compressed_np, return_counts=True)
+# print("uniques, counts for all data")
+# print(u)
+# print(c)
+
+# compressed = compress_data(data)
+# compressed = compressed_to_categorical(compressed)
+# for i, house in enumerate(compressed):
+#     house[house != 0] = 1
+#     # some houses are either all 0 or all 1. We can remove them here
+#     # for some reason pop and remove don't work
+#     if len(np.unique(house)) == 2:
+#         binarized.append(house)
+
+# getting compressed versions but still removing the ones that cant be binarized so we end up with the same number, and so the curated list of indices still works
+binarized = []
+for i, house in enumerate(compressed):
+    b = np.copy(house)
+    b[b != 0] = 1
+    # some houses are either all 0 or all 1. We can remove them here
+    # for some reason pop and remove don't work
+    if len(np.unique(b)) == 2:
+        binarized.append(house)
+
+# new filtering
+outliers_removed_data = remove_outliers(binarized)
+
+# crop each house to its minimum size after removing outliers
+cropped_houses = []
+for house in outliers_removed_data:
+    cropped_houses.append(cropHouse(house))
+
+# filter down to houses that fit in 16x16x16 (and bigger than 5x5x5) after removing outliers
+filtered_houses = []
+for house in cropped_houses:
+    house_shape = house.shape
+    if house_shape[0] <= 16 and house_shape[1] <= 16 and house_shape[2] <= 16 and (house_shape[0] > 4 and house_shape[1] > 4 and house_shape[2] > 4):
+        filtered_houses.append(house)
+
+print("Number of houses within 16x16x16 after removing outliers: ", len(filtered_houses))
+
+# Pad the houses so they're all 16x16x16 (this may not be necessary)
+padded_filtered_data = pad_arrays(filtered_houses, 16, 16, 16)
+print(np.unique(np.asarray(padded_filtered_data)))
+# compressed_categorical = compressed_to_categorical(padded_filtered_data)
+largest_cc = get_largest_connected_component(padded_filtered_data)
+print(np.unique(np.asarray(largest_cc)))
+print(len(largest_cc))
+write_to_npy_file(largest_cc, "craftassist_notcompressed_largestCC_1039.npy")
+
+
+
 # #
 # # orig = np.copy(padded_filtered_data[100])
+
 # compressed = compress_data(padded_filtered_data)
 # compressed = compressed_to_categorical(compressed)
-# # print(compressed[0].shape)
-# # sanity_check(orig, [compressed[100]])
-# # round_generated_npy("generated_samples")
-# # convert_to_schem("generated_samples/rounded/")
-#
-# # stone_only = convert_to_stone_only(padded_filtered_data)
-# # rotated = rotation_augmentation(compressed)
+# # # print(compressed[0].shape)
+# # # sanity_check(orig, [compressed[100]])
+# # # round_generated_npy("generated_samples")
+# # # convert_to_schem("generated_samples/rounded/")
+# #
+# # binarize
+# compressed = np.asarray(compressed)
+# compressed[compressed != 0] = 1
+# # binary = np.asarray(compressed)
+# print(compressed.shape)
+# write_to_npy_file(compressed, "16x16x16_craftassist.npy")
+# stone_only = convert_to_stone_only(padded_filtered_data)
+# rotated = rotation_augmentation(compressed)
 # flipped = reflection_augmentation(compressed)
 #
 # one_hot = tf.one_hot(flipped, 15, dtype=tf.int8).numpy()
